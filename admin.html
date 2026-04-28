@@ -238,6 +238,10 @@ tailwind.config = {
             <span class="material-symbols-outlined text-sm">add</span>Adicionar Manual
           </button>
         </div>
+        <div class="mb-5 relative">
+          <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-warm-gray/40 text-lg">search</span>
+          <input id="client-search" type="text" placeholder="Buscar por nome ou telefone..." oninput="filterClients()" class="w-full bg-white border border-rose-light/50 rounded-xl pl-12 pr-4 py-3 text-sm focus:outline-none focus:border-rose-gold shadow-sm"/>
+        </div>
         <div id="clients-list" class="space-y-2">
           <div class="text-center py-16 text-warm-gray/30 text-sm">Carregando...</div>
         </div>
@@ -850,12 +854,13 @@ tailwind.config = {
 <div id="new-client-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
     <div class="flex items-center justify-between p-5 border-b border-rose-light/30 bg-stone-neutral/30">
-      <h3 class="font-black uppercase tracking-tight text-navy-brand text-sm">Novo Cliente</h3>
+      <h3 id="nc-title" class="font-black uppercase tracking-tight text-navy-brand text-sm">Novo Cliente</h3>
       <button onclick="closeNewClientModal()" class="text-warm-gray/30 hover:text-rose-gold transition-colors cursor-pointer p-1">
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
     <div class="p-6 space-y-4">
+      <input type="hidden" id="nc-id"/>
       <div>
         <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Nome completo *</label>
         <input id="nc-name" type="text" class="w-full border border-rose-light/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="Ex: Maria da Silva"/>
@@ -1386,8 +1391,19 @@ async function loadClients() {
       list.innerHTML = '<div class="text-center py-16 text-warm-gray/30 text-sm">Nenhum cliente cadastrado ainda.</div>';
       return;
     }
-    list.innerHTML = clientsData.map((u, i) => `
-      <div onclick="openClientProfile(${i})"
+    renderClientsList(clientsData);
+  } catch {
+    list.innerHTML = '<div class="text-center py-16 text-warm-gray/30 text-sm">Erro ao carregar clientes.</div>';
+  }
+}
+
+window.renderClientsList = (data) => {
+  const list = document.getElementById('clients-list');
+  if (!data.length) { list.innerHTML = '<div class="text-center py-16 text-warm-gray/30 text-sm">Nenhum cliente encontrado.</div>'; return; }
+  list.innerHTML = data.map(u => {
+    const idx = clientsData.findIndex(c => c.uid === u.uid);
+    return `
+      <div onclick="openClientProfile(${idx})"
         class="bg-white rounded-2xl p-4 shadow-sm border border-rose-light/20 flex items-center gap-4 hover:border-rose-gold/50 hover:shadow-md transition-all cursor-pointer">
         <div class="w-10 h-10 rounded-full bg-rose-light/30 flex items-center justify-center flex-shrink-0">
           <span class="material-symbols-outlined text-rose-gold text-xl">person</span>
@@ -1396,37 +1412,80 @@ async function loadClients() {
           <p class="font-bold text-sm text-navy-brand truncate">${u.name || '—'} ${u.isManual ? '<span class="text-[9px] bg-stone-neutral px-1.5 py-0.5 rounded text-warm-gray/50 ml-1">Manual</span>' : ''}</p>
           <p class="text-xs text-warm-gray/50 mt-0.5">${u.phone ? u.phone + (u.email ? ' · ' + u.email : '') : (u.email || '—')}</p>
         </div>
-        <span class="material-symbols-outlined text-warm-gray/25 text-base flex-shrink-0">chevron_right</span>
-      </div>`).join('');
-  } catch {
-    list.innerHTML = '<div class="text-center py-16 text-warm-gray/30 text-sm">Erro ao carregar clientes.</div>';
-  }
-}
+        ${u.isManual ? `
+          <button onclick="event.stopPropagation(); editManualClient('${u.uid}')" class="text-warm-gray/30 hover:text-rose-gold p-1.5 transition-colors cursor-pointer" title="Editar"><span class="material-symbols-outlined text-lg">edit</span></button>
+          <button onclick="event.stopPropagation(); deleteManualClient('${u.uid}')" class="text-warm-gray/30 hover:text-red-400 p-1.5 transition-colors cursor-pointer" title="Excluir"><span class="material-symbols-outlined text-lg">delete</span></button>
+        ` : ''}
+        <span class="material-symbols-outlined text-warm-gray/25 text-base flex-shrink-0 ml-1">chevron_right</span>
+      </div>`;
+  }).join('');
+};
+
+window.filterClients = () => {
+  const q = document.getElementById('client-search').value.toLowerCase();
+  const filtered = clientsData.filter(c => (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q));
+  renderClientsList(filtered);
+};
 
 window.openNewClientModal = () => {
+  document.getElementById('nc-id').value = '';
   document.getElementById('nc-name').value = '';
   document.getElementById('nc-phone').value = '';
+  document.getElementById('nc-title').textContent = 'Novo Cliente';
+  document.getElementById('nc-btn').textContent = 'Cadastrar';
   document.getElementById('new-client-modal').classList.remove('hidden');
 };
+
+window.editManualClient = uid => {
+  const u = clientsData.find(c => c.uid === uid);
+  if (!u) return;
+  document.getElementById('nc-id').value = u.uid;
+  document.getElementById('nc-name').value = u.name || '';
+  document.getElementById('nc-phone').value = u.phone || '';
+  document.getElementById('nc-title').textContent = 'Editar Cliente';
+  document.getElementById('nc-btn').textContent = 'Salvar Alterações';
+  document.getElementById('new-client-modal').classList.remove('hidden');
+};
+
+window.deleteManualClient = async uid => {
+  if (!confirm('Tem certeza que deseja excluir este cliente? Toda a ficha de anamnese também será perdida.')) return;
+  try {
+    await deleteDoc(doc(db, 'clientes', uid));
+    await deleteDoc(doc(db, 'anamnese', uid));
+    showToast('Cliente excluído!');
+    loadClients();
+  } catch(e) {
+    showToast('Erro ao excluir.');
+    console.error(e);
+  }
+};
+
 window.closeNewClientModal = () => {
   document.getElementById('new-client-modal').classList.add('hidden');
 };
+
 window.saveNewClient = async () => {
+  const uid = document.getElementById('nc-id').value;
   const name = document.getElementById('nc-name').value.trim();
   const phone = document.getElementById('nc-phone').value.trim();
   if (!name || !phone) { showToast('Preencha nome e telefone.'); return; }
   const btn = document.getElementById('nc-btn');
   btn.textContent = 'Salvando...'; btn.disabled = true;
   try {
-    await addDoc(collection(db, 'clientes'), { name, phone, createdAt: serverTimestamp() });
-    showToast('Cliente cadastrado!');
+    if (uid) {
+      await updateDoc(doc(db, 'clientes', uid), { name, phone });
+      showToast('Cliente atualizado!');
+    } else {
+      await addDoc(collection(db, 'clientes'), { name, phone, createdAt: serverTimestamp() });
+      showToast('Cliente cadastrado!');
+    }
     closeNewClientModal();
     loadClients();
   } catch (e) {
-    showToast('Erro ao cadastrar cliente. Verifique permissões.');
+    showToast('Erro ao salvar cliente. Verifique permissões.');
     console.error(e);
   }
-  btn.textContent = 'Cadastrar'; btn.disabled = false;
+  btn.disabled = false;
 };
 
 window.openClientProfile = async idx => {
