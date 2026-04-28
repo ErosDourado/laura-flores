@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Admin | Bioflores</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="icon" type="image/png" href="assets/icon-192.png"/>
+<link rel="apple-touch-icon" href="assets/icon-192.png"/>
+<meta name="theme-color" content="#B76E79"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="Bioflores"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  theme: { extend: {
+    colors: { "rose-gold":"#B76E79","rose-light":"#E5C1CD","deep-rose":"#8E505A","stone-neutral":"#F5F2ED","warm-gray":"#4A4546","navy-brand":"#1D2D44" },
+    fontFamily: { body:["Montserrat","sans-serif"] }
+  }}
+}
+</script>
+<style>
+  body { font-family:'Montserrat',sans-serif; }
+  .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+  .tab-active { border-bottom:2px solid #B76E79; color:#B76E79; font-weight:700; }
+  .status-pending  { background:#FEF3C7; color:#92400E; }
+  .status-confirmed{ background:#D1FAE5; color:#065F46; }
+  .status-cancelled{ background:#FEE2E2; color:#991B1B; }
+  .cal-day { transition:all .12s; }
+  .cal-day.blocked { background:#B76E79; color:#fff; font-weight:700; border-radius:0.5rem; }
+  .cal-day.past { opacity:.3; cursor:not-allowed; }
+  .cal-day:not(.past):not(.empty):hover { background:#E5C1CD; border-radius:0.5rem; cursor:pointer; }
+  .upload-zone { border:2px dashed #E5C1CD; transition:border-color .15s; }
+  .upload-zone:hover { border-color:#B76E79; }
+  .status-concluded { background:#EDE9FE; color:#5B21B6; }
+  .appt-cal-day { transition:all .12s; border-radius:0.5rem; cursor:pointer; }
+  .appt-cal-day:not(.empty):hover { background:#E5C1CD; }
+  .appt-cal-day.selected { background:#B76E79; color:#fff; font-weight:700; }
+  body { -webkit-user-select:none; user-select:none; }
+  input, textarea, select { -webkit-user-select:text; user-select:text; }
+  #clients-profile-view input[type="number"]::-webkit-inner-spin-button { opacity:.4; }
+</style>
+</head>
+<body class="bg-stone-neutral text-warm-gray min-h-screen font-body">
+
+<!-- Spinner inicial -->
+<div id="init-loading" class="min-h-screen flex items-center justify-center">
+  <div class="w-8 h-8 rounded-full border-2 border-rose-light border-t-rose-gold animate-spin"></div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen" class="hidden min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-stone-neutral to-rose-light/20">
+  <div class="bg-white rounded-2xl shadow-2xl p-8 md:p-12 w-full max-w-md">
+    <div class="text-center mb-8">
+      <img src="assets/logo.png" alt="Logo" class="h-10 mx-auto mb-3 object-contain"/>
+      <p class="text-[10px] font-black uppercase tracking-[0.3em] text-warm-gray/40">Admin</p>
+    </div>
+    <div class="space-y-4">
+      <input id="login-email" type="email" autocomplete="email" placeholder="E-mail" class="w-full border border-rose-light/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold"/>
+      <input id="login-password" type="password" autocomplete="current-password" placeholder="Senha" class="w-full border border-rose-light/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold"/>
+      <p id="login-error" class="text-red-500 text-xs hidden text-center"></p>
+      <button id="login-btn" onclick="doLogin()" class="w-full bg-rose-gold text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="hidden flex flex-col min-h-screen">
+
+  <header class="bg-white border-b border-rose-light/30 px-4 md:px-8 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+    <div class="flex items-center gap-2.5">
+      <img src="assets/logo.png" alt="Logo" class="h-10 object-contain"/>
+      <span class="text-[9px] font-black uppercase tracking-[0.35em] text-warm-gray/35 mt-0.5">Admin</span>
+    </div>
+    <a href="index.html" class="flex items-center gap-1.5 text-xs font-bold text-warm-gray/50 hover:text-rose-gold transition-colors">
+      <span class="material-symbols-outlined text-base">home</span><span class="hidden sm:inline uppercase tracking-wider text-[10px]">Home</span>
+    </a>
+  </header>
+
+  <div class="bg-white border-b border-rose-light/30 px-4 md:px-8 overflow-x-auto">
+    <div class="flex min-w-max">
+      <button class="tab-btn tab-active px-5 py-4 text-[10px] uppercase tracking-widest cursor-pointer" data-tab="appointments" onclick="switchTab('appointments')">
+        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-sm">calendar_month</span>Agendamentos</span>
+      </button>
+      <button class="tab-btn px-5 py-4 text-[10px] uppercase tracking-widest text-warm-gray/50 hover:text-rose-gold cursor-pointer" data-tab="services" onclick="switchTab('services')">
+        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-sm">medical_services</span>Serviços</span>
+      </button>
+      <button class="tab-btn px-5 py-4 text-[10px] uppercase tracking-widest text-warm-gray/50 hover:text-rose-gold cursor-pointer" data-tab="procedures" onclick="switchTab('procedures')">
+        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-sm">photo_library</span>Feed</span>
+      </button>
+      <button class="tab-btn px-5 py-4 text-[10px] uppercase tracking-widest text-warm-gray/50 hover:text-rose-gold cursor-pointer" data-tab="clients" onclick="switchTab('clients')">
+        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-sm">group</span>Clientes</span>
+      </button>
+      <button class="tab-btn px-5 py-4 text-[10px] uppercase tracking-widest text-warm-gray/50 hover:text-rose-gold cursor-pointer" data-tab="availability" onclick="switchTab('availability')">
+        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-sm">schedule</span>Disponibilidade</span>
+      </button>
+    </div>
+  </div>
+
+  <main class="flex-1 px-4 md:px-8 py-6 max-w-7xl mx-auto w-full">
+
+    <!-- AGENDAMENTOS -->
+    <div id="tab-appointments" class="tab-content">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
+        <div>
+          <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight">Agendamentos</h2>
+          <p id="appt-count" class="text-xs text-warm-gray/50 mt-0.5"></p>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="filterAppt('all')" class="filter-btn text-[10px] px-3 py-1.5 rounded-full border border-rose-gold text-rose-gold font-bold cursor-pointer" data-filter="all">Todos</button>
+          <button onclick="filterAppt('pending')" class="filter-btn text-[10px] px-3 py-1.5 rounded-full border border-gray-200 text-warm-gray/60 font-bold cursor-pointer" data-filter="pending">Pendentes</button>
+          <button onclick="filterAppt('confirmed')" class="filter-btn text-[10px] px-3 py-1.5 rounded-full border border-gray-200 text-warm-gray/60 font-bold cursor-pointer" data-filter="confirmed">Confirmados</button>
+          <button onclick="filterAppt('concluded')" class="filter-btn text-[10px] px-3 py-1.5 rounded-full border border-gray-200 text-warm-gray/60 font-bold cursor-pointer" data-filter="concluded">Concluídos</button>
+          <button onclick="filterAppt('cancelled')" class="filter-btn text-[10px] px-3 py-1.5 rounded-full border border-gray-200 text-warm-gray/60 font-bold cursor-pointer" data-filter="cancelled">Cancelados</button>
+        </div>
+      </div>
+
+      <!-- Calendário de agendamentos -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20 mb-5">
+        <div class="flex items-center justify-between mb-3">
+          <button onclick="prevApptMonth()" class="text-warm-gray/40 hover:text-rose-gold cursor-pointer transition-colors">
+            <span class="material-symbols-outlined">chevron_left</span>
+          </button>
+          <div class="flex items-center gap-3">
+            <p id="appt-cal-title" class="text-sm font-bold uppercase tracking-wide"></p>
+            <button onclick="clearApptDate()" id="clear-appt-date" class="hidden text-[9px] text-warm-gray/40 hover:text-rose-gold font-bold cursor-pointer transition-colors px-2.5 py-1 border border-rose-light/40 rounded-full uppercase tracking-widest">
+              Ver todos
+            </button>
+          </div>
+          <button onclick="nextApptMonth()" class="text-warm-gray/40 hover:text-rose-gold cursor-pointer transition-colors">
+            <span class="material-symbols-outlined">chevron_right</span>
+          </button>
+        </div>
+        <div class="grid grid-cols-7 gap-1 mb-1">
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">D</div>
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">S</div>
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">T</div>
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">Q</div>
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">Q</div>
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">S</div>
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">S</div>
+        </div>
+        <div id="appt-cal-grid" class="grid grid-cols-7 gap-1"></div>
+      </div>
+
+      <div id="appointments-list" class="space-y-3">
+        <div class="text-center py-16 text-warm-gray/30 text-sm">Carregando...</div>
+      </div>
+    </div>
+
+    <!-- SERVIÇOS -->
+    <div id="tab-services" class="tab-content hidden">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight">Serviços disponíveis</h2>
+        <button onclick="openSvcModal()" class="flex items-center gap-2 bg-rose-gold text-white px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-deep-rose transition-colors cursor-pointer shadow-sm">
+          <span class="material-symbols-outlined text-base">add</span>Novo serviço
+        </button>
+      </div>
+      <div id="services-list" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="col-span-3 text-center py-16 text-warm-gray/30 text-sm">Carregando...</div>
+      </div>
+    </div>
+
+    <!-- FEED -->
+    <div id="tab-procedures" class="tab-content hidden">
+
+      <!-- Card Promocional -->
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 mb-6">
+        <div class="mb-4">
+          <h3 class="font-black text-sm uppercase tracking-tight text-navy-brand">Card Promocional</h3>
+          <p class="text-[10px] text-warm-gray/40 mt-0.5 uppercase tracking-wider">Aparece no site entre as seções</p>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-5">
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Imagem</label>
+            <div id="promo-img-preview" onclick="document.getElementById('promo-img-input').click()"
+              class="upload-zone h-36 rounded-xl flex items-center justify-center cursor-pointer overflow-hidden bg-stone-neutral relative">
+              <span class="material-symbols-outlined text-warm-gray/25 text-4xl">add_photo_alternate</span>
+            </div>
+            <input id="promo-img-input" type="file" accept="image/*" class="hidden" onchange="handlePromoImg(this)"/>
+          </div>
+          <div class="flex flex-col gap-3">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Título</label>
+              <input id="promo-title" type="text" placeholder="Ex: Promoção especial de verão" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Botão leva para</label>
+              <select id="promo-link" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold bg-white">
+                <option value="agendamento.html">Página de agendamento</option>
+                <option value="#procedures">Seção procedimentos</option>
+              </select>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer select-none text-sm">
+              <input type="checkbox" id="promo-active" checked class="w-4 h-4 accent-rose-gold"/>
+              <span class="font-semibold">Exibir no site</span>
+            </label>
+            <button onclick="savePromoCard()" class="bg-rose-gold text-white py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer mt-auto">
+              Salvar card
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feed de procedimentos -->
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight">Feed</h2>
+        <div class="flex gap-2">
+          <button onclick="saveProcs()" class="border border-rose-gold text-rose-gold px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-rose-light/20 transition-colors cursor-pointer">
+            Salvar tudo
+          </button>
+          <button onclick="addProc()" class="flex items-center gap-1.5 bg-rose-gold text-white px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-deep-rose transition-colors cursor-pointer shadow-sm">
+            <span class="material-symbols-outlined text-sm">add</span>Adicionar
+          </button>
+        </div>
+      </div>
+      <div id="procedures-list" class="space-y-2">
+        <div class="text-center py-12 text-warm-gray/30 text-sm">Carregando...</div>
+      </div>
+    </div>
+
+    <!-- CLIENTES -->
+    <div id="tab-clients" class="tab-content hidden">
+
+      <!-- Lista de clientes -->
+      <div id="clients-list-view">
+        <div class="flex items-center justify-between mb-5">
+          <div>
+            <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight">Clientes</h2>
+            <p id="clients-count" class="text-xs text-warm-gray/50 mt-0.5"></p>
+          </div>
+          <button onclick="openNewClientModal()" class="flex items-center gap-1.5 bg-rose-gold text-white px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-deep-rose transition-colors cursor-pointer shadow-sm">
+            <span class="material-symbols-outlined text-sm">add</span>Adicionar Manual
+          </button>
+        </div>
+        <div id="clients-list" class="space-y-2">
+          <div class="text-center py-16 text-warm-gray/30 text-sm">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- Perfil do cliente -->
+      <div id="clients-profile-view" class="hidden">
+        <div class="flex items-center justify-between mb-5">
+          <button onclick="backToClients()" class="flex items-center gap-1.5 text-xs font-bold text-warm-gray/50 hover:text-rose-gold transition-colors cursor-pointer">
+            <span class="material-symbols-outlined text-base">arrow_back</span>Voltar para clientes
+          </button>
+          <button onclick="exportAnamnese()" class="flex items-center gap-1.5 border-2 border-navy-brand text-navy-brand px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-navy-brand hover:text-white transition-colors cursor-pointer">
+            <span class="material-symbols-outlined text-sm">download</span>Exportar Documento
+          </button>
+        </div>
+
+        <!-- Card do cliente -->
+        <div class="bg-rose-gold rounded-2xl p-5 mb-6 flex items-center gap-4">
+          <div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+            <span class="material-symbols-outlined text-white text-2xl">person</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-white/70 text-[10px] uppercase tracking-widest font-bold mb-0.5">Perfil do cliente</p>
+            <h2 id="client-name-display" class="text-white font-black text-base tracking-tight truncate">—</h2>
+            <div class="flex flex-wrap gap-3 mt-1">
+              <p id="client-phone-display" class="text-white/80 text-xs font-medium"></p>
+              <p id="client-email-display" class="text-white/55 text-xs"></p>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-[10px] font-black uppercase tracking-widest text-warm-gray/35 mb-4">Ficha de Anamnese</p>
+
+        <!-- 01 IDENTIFICAÇÃO -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 mb-4">
+          <p class="text-[10px] font-black uppercase tracking-widest text-rose-gold mb-5">01 · Identificação</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="sm:col-span-2">
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Nome completo</label>
+              <input id="an-nome" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Data de Nascimento</label>
+              <input id="an-nascimento" type="date" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Idade</label>
+              <input id="an-idade" type="number" placeholder="35" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Sexo</label>
+              <select id="an-sexo" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold bg-white">
+                <option value="">—</option><option>Feminino</option><option>Masculino</option><option>Outro</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Tipo Sanguíneo</label>
+              <select id="an-tipo-sanguineo" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold bg-white">
+                <option value="">—</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Estado Civil</label>
+              <select id="an-estado-civil" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold bg-white">
+                <option value="">—</option><option>Solteiro(a)</option><option>Casado(a)</option><option>Divorciado(a)</option><option>Viúvo(a)</option><option>União estável</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Naturalidade</label>
+              <input id="an-naturalidade" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Escolaridade</label>
+              <select id="an-escolaridade" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold bg-white">
+                <option value="">—</option><option>Fund. incompleto</option><option>Fund. completo</option><option>Médio incompleto</option><option>Médio completo</option><option>Superior incompleto</option><option>Superior completo</option><option>Pós-graduação</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Profissão</label>
+              <input id="an-profissao" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div class="sm:col-span-2 lg:col-span-3">
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Endereço</label>
+              <input id="an-endereco" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Telefone</label>
+              <input id="an-telefone" type="tel" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">E-mail</label>
+              <input id="an-email" type="email" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Encaminhado por</label>
+              <input id="an-encaminhado" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- 02 QUEIXA PRINCIPAL -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 mb-4">
+          <p class="text-[10px] font-black uppercase tracking-widest text-rose-gold mb-5">02 · Queixa Principal e Histórico</p>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">O que trouxe você aqui? (Queixa principal)</label>
+              <textarea id="an-queixa-principal" rows="3" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Doença de base</label>
+                <input id="an-doenca-base" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Complicações</label>
+                <input id="an-complicacoes" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Saneamento básico</label>
+                <input id="an-saneamento" type="text" placeholder="Água filtrada, esgoto..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Mobilidade</label>
+                <input id="an-mobilidade" type="text" placeholder="Normal, restrita..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Insônia</label>
+                <select id="an-insonia" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold bg-white">
+                  <option value="">—</option><option>Não</option><option>Sim</option><option>Às vezes</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Etilismo</label>
+                <select id="an-etilismo" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold bg-white">
+                  <option value="">—</option><option>Não</option><option>Social</option><option>Frequente</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Tabagismo</label>
+                <select id="an-tabagismo" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold bg-white">
+                  <option value="">—</option><option>Não</option><option>Ex-fumante</option><option>Sim</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Qtd./dia</label>
+                <input id="an-tabagismo-qtd" type="text" placeholder="Ex: 10 cig." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Incontinências</label>
+                <input id="an-incontinencias" type="text" placeholder="Urinária, fecal..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Uso de Sonda / Fralda</label>
+                <select id="an-sonda-fralda" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold bg-white">
+                  <option value="">—</option><option>Não</option><option>Sonda</option><option>Fralda</option><option>Ambos</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Trabalho com substâncias químicas</label>
+                <input id="an-quimicos" type="text" placeholder="Quais..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Atividade física</label>
+                <input id="an-atividade-fisica" type="text" placeholder="Tipo e frequência..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 03 ANTECEDENTES -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 mb-4">
+          <p class="text-[10px] font-black uppercase tracking-widest text-rose-gold mb-5">03 · Antecedentes</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Antecedentes Familiares — Mãe</label>
+              <textarea id="an-antec-mae" rows="2" placeholder="Doenças da mãe..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Antecedentes Familiares — Pai</label>
+              <textarea id="an-antec-pai" rows="2" placeholder="Doenças do pai..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Antecedentes Pessoais — Infância</label>
+              <textarea id="an-antec-infancia" rows="2" placeholder="Doenças na infância..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Antecedentes Pessoais — Adulto</label>
+              <textarea id="an-antec-adulto" rows="2" placeholder="Doenças na fase adulta..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Cirurgias anteriores</label>
+              <textarea id="an-cirurgias" rows="2" placeholder="Quais e quando..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Acidentes / Traumas</label>
+              <textarea id="an-acidentes" rows="2" placeholder="Fratura, trauma..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Intoxicações</label>
+              <textarea id="an-intoxicacoes" rows="2" placeholder="Substância e quando..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Vacinas</label>
+              <input id="an-vacinas" type="text" placeholder="Em dia? Quais..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Filhos / Parto / Aborto</label>
+              <input id="an-filhos" type="text" placeholder="Ex: 2 filhos, parto normal..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-2">Alergias</label>
+            <div class="flex flex-wrap gap-2 mb-2" id="alergias-checks">
+              <label class="flex items-center gap-1.5 bg-stone-neutral border border-rose-light/30 rounded-xl px-3 py-2 cursor-pointer select-none hover:border-rose-gold transition-colors text-sm font-medium"><input type="checkbox" data-alergia="Medicamentos" class="w-4 h-4 accent-rose-gold" onchange="toggleAlergia(this.dataset.alergia,this.checked)"/>Medicamentos</label>
+              <label class="flex items-center gap-1.5 bg-stone-neutral border border-rose-light/30 rounded-xl px-3 py-2 cursor-pointer select-none hover:border-rose-gold transition-colors text-sm font-medium"><input type="checkbox" data-alergia="Alimentos" class="w-4 h-4 accent-rose-gold" onchange="toggleAlergia(this.dataset.alergia,this.checked)"/>Alimentos</label>
+              <label class="flex items-center gap-1.5 bg-stone-neutral border border-rose-light/30 rounded-xl px-3 py-2 cursor-pointer select-none hover:border-rose-gold transition-colors text-sm font-medium"><input type="checkbox" data-alergia="Látex" class="w-4 h-4 accent-rose-gold" onchange="toggleAlergia(this.dataset.alergia,this.checked)"/>Látex</label>
+              <label class="flex items-center gap-1.5 bg-stone-neutral border border-rose-light/30 rounded-xl px-3 py-2 cursor-pointer select-none hover:border-rose-gold transition-colors text-sm font-medium"><input type="checkbox" data-alergia="Animais" class="w-4 h-4 accent-rose-gold" onchange="toggleAlergia(this.dataset.alergia,this.checked)"/>Animais</label>
+              <label class="flex items-center gap-1.5 bg-stone-neutral border border-rose-light/30 rounded-xl px-3 py-2 cursor-pointer select-none hover:border-rose-gold transition-colors text-sm font-medium"><input type="checkbox" data-alergia="Pólen" class="w-4 h-4 accent-rose-gold" onchange="toggleAlergia(this.dataset.alergia,this.checked)"/>Pólen</label>
+              <label class="flex items-center gap-1.5 bg-stone-neutral border border-rose-light/30 rounded-xl px-3 py-2 cursor-pointer select-none hover:border-rose-gold transition-colors text-sm font-medium"><input type="checkbox" data-alergia="Poeira" class="w-4 h-4 accent-rose-gold" onchange="toggleAlergia(this.dataset.alergia,this.checked)"/>Poeira</label>
+              <label class="flex items-center gap-1.5 bg-stone-neutral border border-rose-light/30 rounded-xl px-3 py-2 cursor-pointer select-none hover:border-rose-gold transition-colors text-sm font-medium"><input type="checkbox" data-alergia="Picadas de inseto" class="w-4 h-4 accent-rose-gold" onchange="toggleAlergia(this.dataset.alergia,this.checked)"/>Picadas de inseto</label>
+              <label class="flex items-center gap-1.5 bg-stone-neutral border border-rose-light/30 rounded-xl px-3 py-2 cursor-pointer select-none hover:border-rose-gold transition-colors text-sm font-medium"><input type="checkbox" data-alergia="Outros" class="w-4 h-4 accent-rose-gold" onchange="toggleAlergia(this.dataset.alergia,this.checked)"/>Outros</label>
+            </div>
+            <input id="an-alergias-detalhe" type="text" placeholder="Descreva se necessário..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Tratamentos anteriores</label>
+            <textarea id="an-tratamentos-anteriores" rows="2" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+          </div>
+        </div>
+
+        <!-- 04 MEDICAMENTOS -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 mb-4">
+          <p class="text-[10px] font-black uppercase tracking-widest text-rose-gold mb-5">04 · Medicamentos e Suplementos</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Alopáticos</label>
+              <textarea id="an-med-alop" rows="3" placeholder="Medicamentos em uso..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Fitoterápicos</label>
+              <textarea id="an-med-fito" rows="3" placeholder="Fitoterápicos em uso..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Chás</label>
+              <textarea id="an-med-chas" rows="2" placeholder="Chás utilizados..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Suplementos</label>
+              <textarea id="an-med-suplementos" rows="2" placeholder="Suplementos em uso..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 05 CHECKLIST DE SINTOMAS -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 mb-4">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <p class="text-[10px] font-black uppercase tracking-widest text-rose-gold">05 · Checklist de Sintomas</p>
+              <p class="text-xs text-warm-gray/40 mt-0.5"><span id="sintomas-count">0</span> sintoma(s) marcado(s)</p>
+            </div>
+            <button onclick="openSymptomsModal()" class="flex items-center gap-1.5 border border-rose-gold text-rose-gold px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-rose-light/20 transition-colors cursor-pointer">
+              <span class="material-symbols-outlined text-sm">checklist</span>Selecionar
+            </button>
+          </div>
+          <div id="sintomas-tags" class="flex flex-wrap gap-2 min-h-[28px]">
+            <span class="text-xs text-warm-gray/30 italic">Nenhum selecionado</span>
+          </div>
+        </div>
+
+        <!-- 06 DADOS ANTROPOMÉTRICOS E VITAIS -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 mb-4">
+          <p class="text-[10px] font-black uppercase tracking-widest text-rose-gold mb-5">06 · Dados Antropométricos e Vitais</p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Peso (kg)</label>
+              <input id="an-peso" type="number" step="0.1" placeholder="65.0" oninput="calcIMC()" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Altura (cm)</label>
+              <input id="an-altura" type="number" placeholder="165" oninput="calcIMC()" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">IMC</label>
+              <div class="border border-rose-light/20 rounded-xl px-3 py-2.5 bg-stone-neutral flex items-baseline gap-1.5">
+                <span id="an-imc" class="font-black text-navy-brand text-sm">—</span>
+                <span id="an-imc-class" class="text-[10px] text-warm-gray/50"></span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">PA (mmHg)</label>
+              <input id="an-pa" type="text" placeholder="120/80" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-5">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">FC (bpm)</label>
+              <input id="an-fc" type="text" placeholder="72" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Temperatura (°C)</label>
+              <input id="an-temperatura" type="text" placeholder="36.5" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Pulsos</label>
+              <input id="an-pulsos" type="text" placeholder="Cheios / filiformes..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+          </div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-warm-gray/40 mb-3">Circunferências (cm)</p>
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Cintura</label>
+              <input id="an-cintura" type="text" placeholder="82" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Panturrilha MID</label>
+              <input id="an-panturrilha-mid" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Panturrilha MIE</label>
+              <input id="an-panturrilha-mie" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Tornozelo MID</label>
+              <input id="an-tornozelo-mid" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Tornozelo MIE</label>
+              <input id="an-tornozelo-mie" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- 07 AVALIAÇÃO CLÍNICA -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 mb-4">
+          <p class="text-[10px] font-black uppercase tracking-widest text-rose-gold mb-5">07 · Avaliação Clínica</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Exame Clínico Geral</label>
+              <textarea id="an-exame-clinico" rows="3" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Exame Cardiológico</label>
+              <textarea id="an-exame-cardio" rows="3" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Exame Abdominal</label>
+              <textarea id="an-exame-abdominal" rows="3" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Exame Pulmonar</label>
+              <textarea id="an-exame-pulmonar" rows="3" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 08 EXAMES LABORATORIAIS -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 mb-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+            <p class="text-[10px] font-black uppercase tracking-widest text-rose-gold">08 · Exames Laboratoriais</p>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">Data dos exames</label>
+              <input id="an-exames-data" type="date" class="border border-rose-light/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold"/>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">G6PD</label><input id="an-lab-g6pd" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">Glicose</label><input id="an-lab-glicose" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">Hg Glicada</label><input id="an-lab-hg-glicada" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">Hemograma</label><input id="an-lab-hemograma" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">GGT</label><input id="an-lab-ggt" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">TGO</label><input id="an-lab-tgo" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">TGP</label><input id="an-lab-tgp" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">TSH</label><input id="an-lab-tsh" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">T4 Livre</label><input id="an-lab-t4l" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">T3 Livre</label><input id="an-lab-t3l" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">Vit B12</label><input id="an-lab-vitb12" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">Ferritina</label><input id="an-lab-ferritina" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">Ferro Sérico</label><input id="an-lab-ferro-serico" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">25OH Vit D</label><input id="an-lab-vitd" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">Proteínas Totais</label><input id="an-lab-proteinas" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">PCRus</label><input id="an-lab-pcrus" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">D Dímero</label><input id="an-lab-ddimero" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+            <div><label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1">INR</label><input id="an-lab-inr" type="text" class="w-full border border-rose-light/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold"/></div>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Outros exames / observações</label>
+            <textarea id="an-exames-obs" rows="3" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+          </div>
+        </div>
+
+        <!-- 09 CONCLUSÃO E PROTOCOLO -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 mb-4">
+          <p class="text-[10px] font-black uppercase tracking-widest text-rose-gold mb-5">09 · Conclusão Diagnóstica e Protocolo</p>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Conclusão Diagnóstica</label>
+              <textarea id="an-conclusao" rows="4" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Protocolo</label>
+              <textarea id="an-protocolo" rows="4" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Dose Total</label>
+              <textarea id="an-dose-total" rows="3" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 10 EVOLUÇÃO -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 mb-6">
+          <p class="text-[10px] font-black uppercase tracking-widest text-rose-gold mb-5">10 · Evolução</p>
+          <textarea id="an-evolucao" rows="5" placeholder="Acompanhamento e evolução do paciente..." class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+        </div>
+
+        <div class="flex gap-3 justify-end pb-8">
+          <button id="save-anamnese-btn" onclick="saveAnamnese()"
+            class="bg-rose-gold text-white px-10 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer shadow-sm">
+            Salvar ficha
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DISPONIBILIDADE -->
+    <div id="tab-availability" class="tab-content hidden space-y-5">
+      <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight">Disponibilidade</h2>
+
+      <!-- Horários -->
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 space-y-5">
+        <p class="text-[10px] font-black uppercase tracking-widest text-warm-gray/40">Dias da semana</p>
+        <div id="days-checkboxes" class="flex flex-wrap gap-2"></div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Início</label>
+            <input id="av-start" type="time" value="09:00" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Fim</label>
+            <input id="av-end" type="time" value="18:00" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Intervalo</label>
+            <select id="av-interval" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold bg-white">
+              <option value="30">30 min</option>
+              <option value="60" selected>1 hora</option>
+              <option value="90">1h 30</option>
+              <option value="120">2 horas</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Almoço -->
+        <div class="border-t border-rose-light/20 pt-4">
+          <label class="flex items-center gap-2.5 cursor-pointer select-none mb-3">
+            <input type="checkbox" id="av-lunch-enabled" onchange="toggleLunch(this.checked)" class="w-4 h-4 accent-rose-gold"/>
+            <span class="text-sm font-bold">Bloquear horário de almoço</span>
+          </label>
+          <div id="lunch-fields" class="hidden grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Início almoço</label>
+              <input id="av-lunch-start" type="time" value="12:00" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Fim almoço</label>
+              <input id="av-lunch-end" type="time" value="13:30" class="w-full border border-rose-light/40 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="saveAvailability()" class="bg-rose-gold text-white px-8 py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer shadow-sm">
+          Salvar horários
+        </button>
+      </div>
+
+      <!-- Datas bloqueadas -->
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 space-y-4">
+        <div>
+          <p class="text-[10px] font-black uppercase tracking-widest text-warm-gray/40">Dias bloqueados</p>
+          <p class="text-xs text-warm-gray/50 mt-1">Clique nos dias do mês que não terão atendimento</p>
+        </div>
+        <div class="flex items-center justify-between">
+          <button onclick="prevBlockMonth()" class="text-warm-gray/40 hover:text-rose-gold cursor-pointer transition-colors">
+            <span class="material-symbols-outlined">chevron_left</span>
+          </button>
+          <p id="block-cal-title" class="text-sm font-bold uppercase tracking-wide"></p>
+          <button onclick="nextBlockMonth()" class="text-warm-gray/40 hover:text-rose-gold cursor-pointer transition-colors">
+            <span class="material-symbols-outlined">chevron_right</span>
+          </button>
+        </div>
+        <div class="grid grid-cols-7 gap-1 mb-1">
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">D</div>
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">S</div>
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">T</div>
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">Q</div>
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">Q</div>
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">S</div>
+          <div class="text-[9px] font-bold text-center text-warm-gray/30 uppercase">S</div>
+        </div>
+        <div id="block-cal-grid" class="grid grid-cols-7 gap-1"></div>
+        <div class="pt-2 border-t border-rose-light/20">
+          <p class="text-[10px] text-warm-gray/40 mb-3">Dias bloqueados selecionados: <span id="blocked-count" class="font-bold text-rose-gold">0</span></p>
+          <button onclick="saveBlockedDates()" class="bg-navy-brand text-white px-6 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:opacity-80 transition-opacity cursor-pointer">
+            Salvar datas bloqueadas
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL CROP -->
+<div id="crop-modal" class="fixed inset-0 bg-black/85 z-[200] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col" style="max-height:92vh">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-rose-light/30 flex-shrink-0">
+      <div>
+        <h3 class="font-black uppercase tracking-tight text-navy-brand text-sm">Ajustar imagem</h3>
+        <p class="text-[10px] text-warm-gray/40 mt-0.5">Arraste para reposicionar · Pinça / scroll para zoom</p>
+      </div>
+      <button onclick="closeCropModal()" class="text-warm-gray/30 hover:text-rose-gold cursor-pointer transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="bg-gray-900 flex-1 overflow-hidden" style="min-height:260px">
+      <img id="crop-img" src="" style="display:block;max-width:100%;"/>
+    </div>
+    <div class="px-5 py-4 bg-stone-neutral border-t border-rose-light/20 flex items-center justify-between gap-3 flex-shrink-0">
+      <div class="flex gap-2">
+        <button onclick="cropperInstance&&cropperInstance.zoom(0.15)" title="Zoom +" class="border border-rose-light/40 rounded-xl px-3 py-2.5 text-warm-gray hover:border-rose-gold hover:text-rose-gold transition-colors cursor-pointer">
+          <span class="material-symbols-outlined text-base">zoom_in</span>
+        </button>
+        <button onclick="cropperInstance&&cropperInstance.zoom(-0.15)" title="Zoom -" class="border border-rose-light/40 rounded-xl px-3 py-2.5 text-warm-gray hover:border-rose-gold hover:text-rose-gold transition-colors cursor-pointer">
+          <span class="material-symbols-outlined text-base">zoom_out</span>
+        </button>
+        <button onclick="cropperInstance&&cropperInstance.reset()" class="border border-rose-light/40 rounded-xl px-3 py-2 text-[11px] font-bold text-warm-gray/50 hover:border-rose-gold hover:text-rose-gold transition-colors cursor-pointer">
+          Reset
+        </button>
+      </div>
+      <button onclick="confirmCrop()" id="crop-confirm-btn" class="bg-rose-gold text-white px-7 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">
+        Confirmar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SERVIÇO -->
+<div id="svc-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
+    <div class="flex items-center justify-between p-6 border-b border-rose-light/30">
+      <h3 id="modal-title" class="font-black uppercase tracking-tight text-navy-brand">Novo Serviço</h3>
+      <button onclick="closeSvcModal()" class="text-warm-gray/30 hover:text-rose-gold cursor-pointer"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="p-6 space-y-4">
+      <input type="hidden" id="svc-id"/>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Nome do serviço *</label>
+        <input id="svc-name" type="text" class="w-full border border-rose-light/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="Ex: Ozonioterapia"/>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Descrição curta</label>
+        <textarea id="svc-desc" rows="3" class="w-full border border-rose-light/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold resize-none"></textarea>
+      </div>
+      <label class="flex items-center gap-3 cursor-pointer select-none">
+        <input type="checkbox" id="svc-active" checked class="w-4 h-4 accent-rose-gold"/>
+        <span class="text-sm font-semibold">Disponível para agendamento</span>
+      </label>
+    </div>
+    <div class="flex gap-3 p-6 pt-0">
+      <button onclick="closeSvcModal()" class="flex-1 border border-rose-light/40 text-warm-gray py-3 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-stone-neutral transition-colors cursor-pointer">Cancelar</button>
+      <button onclick="saveSvc()" class="flex-1 bg-rose-gold text-white py-3 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-deep-rose transition-colors cursor-pointer">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SINTOMAS -->
+<div id="symptoms-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col" style="max-height:85vh">
+    <div class="flex items-center justify-between p-5 border-b border-rose-light/30 flex-shrink-0">
+      <div>
+        <h3 class="font-black uppercase tracking-tight text-navy-brand text-sm">Checklist de Sintomas</h3>
+        <p class="text-[10px] text-warm-gray/40 mt-0.5">Selecione todos os sintomas relatados</p>
+      </div>
+      <button onclick="closeSymptomsModal()" class="text-warm-gray/30 hover:text-rose-gold cursor-pointer transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="overflow-y-auto flex-1 p-5">
+      <div id="symptoms-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-0.5"></div>
+    </div>
+    <div class="p-5 border-t border-rose-light/20 flex-shrink-0">
+      <button onclick="closeSymptomsModal()"
+        class="w-full bg-rose-gold text-white py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">
+        Confirmar seleção
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOVO CLIENTE -->
+<div id="new-client-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between p-5 border-b border-rose-light/30 bg-stone-neutral/30">
+      <h3 class="font-black uppercase tracking-tight text-navy-brand text-sm">Novo Cliente</h3>
+      <button onclick="closeNewClientModal()" class="text-warm-gray/30 hover:text-rose-gold transition-colors cursor-pointer p-1">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Nome completo *</label>
+        <input id="nc-name" type="text" class="w-full border border-rose-light/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="Ex: Maria da Silva"/>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Telefone *</label>
+        <input id="nc-phone" type="tel" class="w-full border border-rose-light/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="(11) 99999-9999"/>
+      </div>
+    </div>
+    <div class="flex gap-3 p-6 pt-0">
+      <button onclick="closeNewClientModal()" class="flex-1 border border-rose-light/40 text-warm-gray py-3 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-stone-neutral transition-colors cursor-pointer">Cancelar</button>
+      <button onclick="saveNewClient()" id="nc-btn" class="flex-1 bg-rose-gold text-white py-3 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-deep-rose transition-colors cursor-pointer">Cadastrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-navy-brand text-white px-6 py-3 rounded-full text-sm font-semibold shadow-2xl opacity-0 transition-all duration-300 z-[100] pointer-events-none whitespace-nowrap"></div>
+
+<script type="module">
+import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged }
+                            from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
+         setDoc, getDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp }
+                            from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL }
+                            from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
+
+const FB = { apiKey:"AIzaSyAcZx6vU7bvWx3hzclQ98PfdqulqiQSvX8",authDomain:"lauraflores-10360.firebaseapp.com",
+  projectId:"lauraflores-10360",storageBucket:"lauraflores-10360.firebasestorage.app",
+  messagingSenderId:"1043899124552",appId:"1:1043899124552:web:afcc0a6ee44cf4edc2017d" };
+const app     = initializeApp(FB);
+const auth    = getAuth(app);
+const db      = getFirestore(app);
+const storage = getStorage(app);
+
+// ── AUTH ─────────────────────────────────────────────
+window.doLogin = async () => {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const err   = document.getElementById('login-error');
+  const btn   = document.getElementById('login-btn');
+  btn.textContent = 'Entrando...'; btn.disabled = true; err.classList.add('hidden');
+  try { await signInWithEmailAndPassword(auth, email, pass); }
+  catch { err.textContent = 'E-mail ou senha incorretos.'; err.classList.remove('hidden'); btn.textContent = 'Entrar'; btn.disabled = false; }
+};
+
+onAuthStateChanged(auth, async user => {
+  document.getElementById('init-loading').classList.add('hidden');
+  if (user) {
+    let isAdmin = false;
+    try {
+      const snap = await getDoc(doc(db, 'content', 'admins'));
+      if (snap.exists()) isAdmin = (snap.data().emails || []).includes(user.email);
+    } catch (e) {
+      console.warn("Erro ao verificar admin:", e);
+    }
+
+    if (isAdmin) {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      loadAppointments(); loadServices(); loadProcedures(); loadAvailability(); loadPromoCard(); loadClients();
+    } else {
+      alert("Acesso negado. Você não possui privilégios de administrador.");
+      window.location.href = 'index.html';
+    }
+  } else {
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('dashboard').classList.add('hidden');
+  }
+});
+
+document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') window.doLogin(); });
+
+// ── TABS ─────────────────────────────────────────────
+window.switchTab = tab => {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.tab-btn').forEach(btn => { btn.classList.remove('tab-active'); btn.classList.add('text-warm-gray/50'); });
+  document.getElementById(`tab-${tab}`).classList.remove('hidden');
+  const btn = document.querySelector(`[data-tab="${tab}"]`);
+  btn.classList.add('tab-active'); btn.classList.remove('text-warm-gray/50');
+};
+
+// ── SHARED ───────────────────────────────────────────
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+// ── APPOINTMENTS ─────────────────────────────────────
+let allAppts = [], currentFilter = 'all', selectedApptDate = null;
+let apptCalYear, apptCalMonth;
+
+function loadAppointments() {
+  const now = new Date(); apptCalYear = now.getFullYear(); apptCalMonth = now.getMonth();
+  onSnapshot(query(collection(db,'appointments'), orderBy('createdAt','desc')), snap => {
+    allAppts = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    buildApptCalendar();
+    renderAppts();
+  });
+}
+
+function buildApptCalendar() {
+  const title = document.getElementById('appt-cal-title');
+  const grid  = document.getElementById('appt-cal-grid');
+  if (!title || !grid) return;
+  title.textContent = `${MONTHS_PT[apptCalMonth]} ${apptCalYear}`;
+  const firstDay    = new Date(apptCalYear, apptCalMonth, 1).getDay();
+  const daysInMonth = new Date(apptCalYear, apptCalMonth+1, 0).getDate();
+  const apptCounts  = {};
+  allAppts.forEach(a => {
+    if (!a.date) return;
+    const parts = a.date.split('/');
+    if (parts.length !== 3) return;
+    if (parseInt(parts[2]) === apptCalYear && parseInt(parts[1]) === apptCalMonth+1)
+      apptCounts[parseInt(parts[0])] = (apptCounts[parseInt(parts[0])] || 0) + 1;
+  });
+  let html = '';
+  for (let i=0;i<firstDay;i++) html += '<div class="appt-cal-day empty h-9"></div>';
+  for (let d=1;d<=daysInMonth;d++) {
+    const dateStr = `${String(d).padStart(2,'0')}/${String(apptCalMonth+1).padStart(2,'0')}/${apptCalYear}`;
+    const count   = apptCounts[d] || 0;
+    const isSel   = selectedApptDate === dateStr;
+    html += `<div onclick="pickApptDate('${dateStr}')"
+      class="appt-cal-day h-9 flex flex-col items-center justify-center text-xs font-semibold relative
+        ${isSel ? 'selected' : count > 0 ? 'text-navy-brand' : 'text-warm-gray/30'}">
+      <span>${d}</span>
+      ${count > 0 ? `<span class="absolute bottom-1.5 w-1 h-1 rounded-full ${isSel?'bg-white':'bg-rose-gold'}"></span>` : ''}
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+window.pickApptDate = dateStr => {
+  selectedApptDate = dateStr;
+  document.getElementById('clear-appt-date')?.classList.remove('hidden');
+  buildApptCalendar(); renderAppts();
+};
+window.clearApptDate = () => {
+  selectedApptDate = null;
+  document.getElementById('clear-appt-date')?.classList.add('hidden');
+  buildApptCalendar(); renderAppts();
+};
+window.prevApptMonth = () => { apptCalMonth--; if(apptCalMonth<0){apptCalMonth=11;apptCalYear--;} buildApptCalendar(); };
+window.nextApptMonth = () => { apptCalMonth++; if(apptCalMonth>11){apptCalMonth=0;apptCalYear++;} buildApptCalendar(); };
+
+function renderAppts() {
+  const list = document.getElementById('appointments-list');
+  let data = currentFilter === 'all' ? allAppts : allAppts.filter(a => a.status === currentFilter);
+  if (selectedApptDate) data = data.filter(a => a.date === selectedApptDate);
+  document.getElementById('appt-count').textContent = `${data.length} encontrado${data.length!==1?'s':''}`;
+  if (!data.length) { list.innerHTML = '<div class="text-center py-16 text-warm-gray/30 text-sm">Nenhum agendamento encontrado.</div>'; return; }
+  const labels={pending:'Pendente',confirmed:'Confirmado',concluded:'Concluído',cancelled:'Cancelado'};
+  const cls={pending:'status-pending',confirmed:'status-confirmed',concluded:'status-concluded',cancelled:'status-cancelled'};
+  list.innerHTML = data.map(a => {
+    const digits=(a.phone||'').replace(/\D/g,'');
+    const wa=digits?`55${digits}`:'';
+    const msg=encodeURIComponent(`Olá ${a.clientName}! Confirmando seu agendamento de ${a.serviceName} para ${a.date} às ${a.time}. Instituto Bioflores.`);
+    return `<div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20 flex flex-col lg:flex-row lg:items-center gap-4">
+      <div class="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">Cliente</p><p class="font-semibold">${a.clientName||'—'}</p><p class="text-xs text-warm-gray/40">${a.email||''}</p></div>
+        <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">Serviço</p><p class="font-semibold">${a.serviceName||'—'}</p></div>
+        <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">Data · Hora</p><p class="font-semibold">${a.date||'—'}</p><p class="text-xs text-warm-gray/40">${a.time||''}</p></div>
+        <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">Telefone</p><p class="font-semibold">${a.phone||'—'}</p></div>
+      </div>
+      <div class="flex items-center gap-2 flex-shrink-0 flex-wrap">
+        <span class="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full ${cls[a.status]||'bg-gray-100 text-gray-500'}">${labels[a.status]||a.status}</span>
+        ${wa?`<a href="https://wa.me/${wa}?text=${msg}" target="_blank" class="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition-colors cursor-pointer"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>WhatsApp</a>`:''}
+        <select onchange="updateStatus('${a.id}',this.value)" class="border border-rose-light/40 rounded-xl px-2 py-2 text-[11px] font-bold focus:outline-none cursor-pointer bg-white">
+          <option value="pending"   ${a.status==='pending'   ?'selected':''}>Pendente</option>
+          <option value="confirmed" ${a.status==='confirmed' ?'selected':''}>Confirmado</option>
+          <option value="concluded" ${a.status==='concluded' ?'selected':''}>Concluído</option>
+          <option value="cancelled" ${a.status==='cancelled' ?'selected':''}>Cancelado</option>
+        </select>
+        <button onclick="delAppt('${a.id}')" class="text-warm-gray/25 hover:text-red-400 transition-colors cursor-pointer p-1"><span class="material-symbols-outlined text-xl">delete</span></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+window.filterAppt = filter => {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => { b.classList.remove('border-rose-gold','text-rose-gold'); b.classList.add('border-gray-200','text-warm-gray/60'); });
+  const b = document.querySelector(`[data-filter="${filter}"]`);
+  b.classList.add('border-rose-gold','text-rose-gold'); b.classList.remove('border-gray-200','text-warm-gray/60');
+  renderAppts();
+};
+window.updateStatus = async (id, status) => { await updateDoc(doc(db,'appointments',id),{status}); showToast('Status atualizado'); };
+window.delAppt = async id => { if(!confirm('Excluir?')) return; await deleteDoc(doc(db,'appointments',id)); showToast('Excluído'); };
+
+// ── SERVICES ─────────────────────────────────────────
+let allSvcs = [];
+function loadServices() {
+  onSnapshot(query(collection(db,'services'), orderBy('order')), snap => {
+    allSvcs = snap.docs.map(d => ({id:d.id,...d.data()}));
+    renderSvcs();
+  });
+}
+function renderSvcs() {
+  const list = document.getElementById('services-list');
+  if (!allSvcs.length) { list.innerHTML='<div class="col-span-3 text-center py-16 text-warm-gray/30 text-sm">Nenhum serviço cadastrado.</div>'; return; }
+  list.innerHTML = allSvcs.map(s => `
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20 flex flex-col gap-3">
+      <div class="flex items-start justify-between gap-2">
+        <h3 class="font-bold text-sm uppercase tracking-wide text-navy-brand">${s.name}</h3>
+        <span class="text-[9px] font-bold px-2 py-1 rounded-full ${s.active?'bg-green-100 text-green-700':'bg-gray-100 text-gray-400'}">${s.active?'Ativo':'Inativo'}</span>
+      </div>
+      <p class="text-xs text-warm-gray/60 leading-relaxed flex-1">${s.description||'—'}</p>
+      <div class="flex gap-2 pt-2 border-t border-rose-light/20">
+        <button onclick="toggleSvc('${s.id}',${s.active})" class="flex-1 text-[11px] py-2 rounded-xl border font-bold transition-colors cursor-pointer ${s.active?'border-gray-200 text-warm-gray/50 hover:border-red-200 hover:text-red-400':'border-green-200 text-green-600 hover:bg-green-50'}">${s.active?'Desativar':'Ativar'}</button>
+        <button onclick="openSvcModal('${s.id}')" class="flex-1 text-[11px] py-2 rounded-xl bg-stone-neutral text-warm-gray font-bold hover:bg-rose-light/30 transition-colors cursor-pointer">Editar</button>
+      </div>
+    </div>`).join('');
+}
+window.toggleSvc = async (id, active) => { await updateDoc(doc(db,'services',id),{active:!active}); showToast(`Serviço ${!active?'ativado':'desativado'}`); };
+window.openSvcModal = (id=null) => {
+  document.getElementById('svc-id').value=''; document.getElementById('svc-name').value=''; document.getElementById('svc-desc').value=''; document.getElementById('svc-active').checked=true;
+  document.getElementById('modal-title').textContent='Novo Serviço';
+  if (id) { const s=allSvcs.find(x=>x.id===id); if(s){document.getElementById('svc-id').value=s.id;document.getElementById('svc-name').value=s.name;document.getElementById('svc-desc').value=s.description||'';document.getElementById('svc-active').checked=s.active;document.getElementById('modal-title').textContent='Editar Serviço';}}
+  document.getElementById('svc-modal').classList.remove('hidden');
+};
+window.closeSvcModal = () => document.getElementById('svc-modal').classList.add('hidden');
+window.saveSvc = async () => {
+  const id=document.getElementById('svc-id').value; const name=document.getElementById('svc-name').value.trim();
+  if(!name){showToast('Informe o nome');return;}
+  const data={name,description:document.getElementById('svc-desc').value.trim(),active:document.getElementById('svc-active').checked,order:id?(allSvcs.find(s=>s.id===id)?.order??allSvcs.length):allSvcs.length};
+  if(id){await updateDoc(doc(db,'services',id),data);showToast('Serviço atualizado');}
+  else{await addDoc(collection(db,'services'),data);showToast('Serviço criado');}
+  closeSvcModal();
+};
+
+// ── FEED / PROCEDURES ────────────────────────────────
+let localProcs = [];
+const DEFAULT_PROCS = [
+  {titulo:'OZONIOTERAPIA',slug:'ozonioterapia',imagem:'assets/treatment.png',descricao:'A ozonioterapia é um tratamento seguro, natural e minimamente invasivo.'},
+  {titulo:'BIOESTIMULADORES',slug:'bioestimuladores',imagem:'assets/treatment.png',descricao:'Os bioestimuladores de colágeno estimulam a produção natural de novas fibras.'},
+  {titulo:'HARMONIZAÇÃO',slug:'harmonizacao',imagem:'assets/treatment.png',descricao:'A harmonização facial busca o equilíbrio estético e funcional da face.'},
+];
+
+async function loadProcedures() {
+  const snap = await getDoc(doc(db,'content','procedures'));
+  localProcs = snap.exists() ? (snap.data().items||DEFAULT_PROCS) : DEFAULT_PROCS;
+  renderProcs();
+}
+
+function renderProcs() {
+  document.getElementById('procedures-list').innerHTML = localProcs.map((p, i) => `
+    <div class="bg-white rounded-xl border border-rose-light/20 shadow-sm overflow-hidden">
+      <div class="flex items-center px-5 py-3.5 gap-3 hover:bg-stone-neutral/50 transition-colors">
+        <span class="text-[9px] font-bold text-warm-gray/25 uppercase tracking-widest w-14 flex-shrink-0">Proc. ${String(i+1).padStart(2,'0')}</span>
+        <span class="font-bold text-sm text-navy-brand flex-1 truncate uppercase">${p.titulo||'Sem título'}</span>
+        <button onclick="toggleProcEdit(${i})" class="text-warm-gray/30 hover:text-rose-gold transition-colors flex-shrink-0 cursor-pointer p-1">
+          <span class="material-symbols-outlined text-base">edit</span>
+        </button>
+        <button onclick="removeProc(${i})" class="text-warm-gray/20 hover:text-red-400 transition-colors flex-shrink-0 cursor-pointer p-1">
+          <span class="material-symbols-outlined text-base">delete</span>
+        </button>
+      </div>
+      <div id="proc-edit-${i}" class="hidden border-t border-rose-light/20 p-5 bg-stone-neutral/20 space-y-4">
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-2">Imagem</label>
+          <div class="flex items-center gap-4">
+            <img id="proc-img-preview-${i}" src="${p.imagem||'assets/treatment.png'}" class="w-24 h-20 object-cover rounded-xl border border-rose-light/30 flex-shrink-0"/>
+            <div class="flex flex-col gap-2">
+              <button onclick="document.getElementById('proc-img-${i}').click()" class="flex items-center gap-1.5 border border-rose-light/50 text-warm-gray px-3 py-2 rounded-xl text-[11px] font-bold hover:border-rose-gold hover:text-rose-gold transition-colors cursor-pointer">
+                <span class="material-symbols-outlined text-sm">upload</span>Upload de imagem
+              </button>
+              <input id="proc-img-${i}" type="file" accept="image/*" class="hidden" onchange="uploadProcImg(${i}, this)"/>
+              <p class="text-[9px] text-warm-gray/30 uppercase tracking-wider">ou cole a URL abaixo</p>
+              <input value="${p.imagem||''}" oninput="localProcs[${i}].imagem=this.value;document.getElementById('proc-img-preview-${i}').src=this.value" placeholder="URL da imagem" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold"/>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Título</label>
+          <input value="${p.titulo}" oninput="localProcs[${i}].titulo=this.value;renderProcTitle(${i},this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Descrição</label>
+          <textarea rows="3" oninput="localProcs[${i}].descricao=this.value" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none">${p.descricao}</textarea>
+        </div>
+        <button onclick="saveProcs()" class="bg-rose-gold text-white px-6 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">
+          Salvar
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+window.toggleProcEdit = i => document.getElementById(`proc-edit-${i}`).classList.toggle('hidden');
+window.renderProcTitle = (i, val) => {
+  const el = document.querySelector(`#proc-edit-${i}`)?.closest('.bg-white')?.querySelector('.text-navy-brand');
+  if (el) el.textContent = val || 'Sem título';
+};
+
+window.uploadProcImg = (i, input) => {
+  const file = input.files[0]; if (!file) return;
+  input.value = '';
+  // Procedure ratio: 4:3 (card image area)
+  openCropModal(file, 4/3, async croppedFile => {
+    showToast('Enviando imagem...');
+    try {
+      const storageRef = sRef(storage, `procedures/${i}_${Date.now()}_imagem.jpg`);
+      await uploadBytes(storageRef, croppedFile);
+      const url = await getDownloadURL(storageRef);
+      localProcs[i].imagem = url;
+      document.getElementById(`proc-img-preview-${i}`).src = url;
+      const urlInput = document.querySelector(`#proc-edit-${i} input[placeholder="URL da imagem"]`);
+      if (urlInput) urlInput.value = url;
+      showToast('Imagem enviada!');
+    } catch (e) { showToast('Erro no upload. Verifique o Storage.'); console.error(e); }
+  });
+};
+
+window.addProc = () => { localProcs.push({titulo:'',slug:'novo',imagem:'assets/treatment.png',descricao:''}); renderProcs(); };
+window.removeProc = i => { if(!confirm('Remover procedimento?')) return; localProcs.splice(i,1); renderProcs(); };
+window.saveProcs = async () => { await setDoc(doc(db,'content','procedures'),{items:localProcs}); showToast('Feed salvo!'); };
+
+// ── PROMO CARD ────────────────────────────────────────
+let promoImgFile = null;
+async function loadPromoCard() {
+  try {
+    const snap = await getDoc(doc(db,'content','promo_card'));
+    if (!snap.exists()) return;
+    const d = snap.data();
+    if (d.title) document.getElementById('promo-title').value = d.title;
+    if (d.link)  document.getElementById('promo-link').value  = d.link;
+    if (d.active !== undefined) document.getElementById('promo-active').checked = d.active;
+    if (d.imageUrl) {
+      const el = document.getElementById('promo-img-preview');
+      el.style.backgroundImage = `url('${d.imageUrl}')`;
+      el.style.backgroundSize = 'cover'; el.style.backgroundPosition = 'center';
+      el.innerHTML = '';
+    }
+  } catch {}
+}
+
+window.handlePromoImg = input => {
+  const file = input.files[0]; if (!file) return;
+  input.value = '';
+  // Promo card ratio: 3:1 (wide banner)
+  openCropModal(file, 3/1, croppedFile => {
+    promoImgFile = croppedFile;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const el = document.getElementById('promo-img-preview');
+      el.style.backgroundImage = `url('${e.target.result}')`;
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
+      el.innerHTML = '';
+    };
+    reader.readAsDataURL(croppedFile);
+  });
+};
+
+window.savePromoCard = async () => {
+  const title  = document.getElementById('promo-title').value.trim();
+  const link   = document.getElementById('promo-link').value;
+  const active = document.getElementById('promo-active').checked;
+  let imageUrl = (await getDoc(doc(db,'content','promo_card'))).data()?.imageUrl || '';
+  if (promoImgFile) {
+    showToast('Enviando imagem...');
+    try {
+      const storageRef = sRef(storage, `promo/card_${Date.now()}_${promoImgFile.name}`);
+      await uploadBytes(storageRef, promoImgFile);
+      imageUrl = await getDownloadURL(storageRef);
+      promoImgFile = null;
+    } catch (e) { showToast('Erro no upload da imagem.'); return; }
+  }
+  await setDoc(doc(db,'content','promo_card'), { title, link, active, imageUrl });
+  showToast('Card promocional salvo!');
+};
+
+// ── AVAILABILITY ─────────────────────────────────────
+const DAY_LABELS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+let selectedDays  = [1,2,3,4,5];
+let blockedDates  = [];
+let blockYear, blockMonth;
+
+async function loadAvailability() {
+  const now = new Date(); blockYear = now.getFullYear(); blockMonth = now.getMonth();
+  try {
+    const snap = await getDoc(doc(db,'content','availability'));
+    if (snap.exists()) {
+      const d = snap.data();
+      selectedDays  = d.days     || [1,2,3,4,5];
+      blockedDates  = d.blocked  || [];
+      if (d.start)    document.getElementById('av-start').value    = d.start;
+      if (d.end)      document.getElementById('av-end').value      = d.end;
+      if (d.interval) document.getElementById('av-interval').value = d.interval;
+      if (d.lunchEnabled) {
+        document.getElementById('av-lunch-enabled').checked = true;
+        document.getElementById('lunch-fields').classList.remove('hidden');
+        if (d.lunchStart) document.getElementById('av-lunch-start').value = d.lunchStart;
+        if (d.lunchEnd)   document.getElementById('av-lunch-end').value   = d.lunchEnd;
+      }
+    }
+  } catch {}
+  renderDays(); buildBlockCalendar();
+  document.getElementById('blocked-count').textContent = blockedDates.length;
+}
+
+function renderDays() {
+  document.getElementById('days-checkboxes').innerHTML = DAY_LABELS.map((label, i) => `
+    <label class="flex items-center gap-2 cursor-pointer select-none bg-stone-neutral border border-rose-light/30 rounded-xl px-3 py-2 hover:border-rose-gold transition-colors">
+      <input type="checkbox" value="${i}" ${selectedDays.includes(i)?'checked':''}
+        onchange="toggleDay(${i},this.checked)" class="w-4 h-4 accent-rose-gold"/>
+      <span class="text-sm font-bold">${label}</span>
+    </label>`).join('');
+}
+window.toggleDay = (day, checked) => { selectedDays = checked ? [...new Set([...selectedDays,day])] : selectedDays.filter(d=>d!==day); };
+window.toggleLunch = checked => { document.getElementById('lunch-fields').classList.toggle('hidden',!checked); };
+
+window.saveAvailability = async () => {
+  const lunchEnabled = document.getElementById('av-lunch-enabled').checked;
+  await setDoc(doc(db,'content','availability'), {
+    days: selectedDays,
+    start: document.getElementById('av-start').value,
+    end:   document.getElementById('av-end').value,
+    interval: parseInt(document.getElementById('av-interval').value),
+    lunchEnabled,
+    lunchStart: lunchEnabled ? document.getElementById('av-lunch-start').value : null,
+    lunchEnd:   lunchEnabled ? document.getElementById('av-lunch-end').value   : null,
+    blocked: blockedDates,
+  });
+  showToast('Disponibilidade salva!');
+};
+
+// Calendário de datas bloqueadas
+function buildBlockCalendar() {
+  const title = document.getElementById('block-cal-title');
+  const grid  = document.getElementById('block-cal-grid');
+  const today = new Date(); today.setHours(0,0,0,0);
+  title.textContent = `${MONTHS_PT[blockMonth]} ${blockYear}`;
+  const firstDay    = new Date(blockYear, blockMonth, 1).getDay();
+  const daysInMonth = new Date(blockYear, blockMonth+1, 0).getDate();
+  let html = '';
+  for (let i=0;i<firstDay;i++) html += '<div class="cal-day empty h-8"></div>';
+  for (let d=1;d<=daysInMonth;d++) {
+    const date    = new Date(blockYear, blockMonth, d);
+    const dateStr = `${blockYear}-${String(blockMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isPast  = date < today;
+    const isBlocked = blockedDates.includes(dateStr);
+    html += `<div onclick="${isPast?'':` toggleBlockDate('${dateStr}')`}"
+      class="cal-day h-8 flex items-center justify-center text-xs font-semibold ${isPast?'past':''} ${isBlocked?'blocked':''}">${d}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+window.toggleBlockDate = dateStr => {
+  if (blockedDates.includes(dateStr)) { blockedDates = blockedDates.filter(d=>d!==dateStr); }
+  else { blockedDates.push(dateStr); }
+  document.getElementById('blocked-count').textContent = blockedDates.length;
+  buildBlockCalendar();
+};
+window.prevBlockMonth = () => { blockMonth--; if(blockMonth<0){blockMonth=11;blockYear--;} buildBlockCalendar(); };
+window.nextBlockMonth = () => { blockMonth++; if(blockMonth>11){blockMonth=0;blockYear++;} buildBlockCalendar(); };
+
+window.saveBlockedDates = async () => {
+  const snap = await getDoc(doc(db,'content','availability'));
+  const existing = snap.exists() ? snap.data() : {};
+  await setDoc(doc(db,'content','availability'), { ...existing, blocked: blockedDates }, { merge:true });
+  showToast(`${blockedDates.length} datas bloqueadas salvas!`);
+};
+
+// ── CLIENTS & ANAMNESE ───────────────────────────────
+const SINTOMAS_LIST = [
+  // Sistema Geral
+  'Fadiga / Cansaço excessivo','Fraqueza generalizada','Febre recorrente','Calafrios',
+  'Sudorese noturna','Perda de peso involuntária','Ganho de peso involuntário','Edema / Inchaço generalizado',
+  // Sistema Neurológico
+  'Cefaleia frequente','Enxaqueca','Tontura / Vertigem','Desmaio / Síncope',
+  'Tremores','Formigamento / Dormência','Convulsões','Dificuldade de concentração',
+  'Perda de memória','Distúrbios do sono',
+  // Sistema Cardiovascular
+  'Palpitações','Dor ou pressão no peito','Falta de ar ao esforço',
+  'Falta de ar em repouso','Inchaço em membros inferiores','Varizes',
+  // Sistema Respiratório
+  'Tosse seca','Tosse com catarro','Chiado no peito (sibilos)',
+  'Epistaxe (sangramento nasal)','Ronco / Apneia do sono',
+  // Sistema Digestivo
+  'Náuseas','Vômitos','Diarreia','Constipação (prisão de ventre)',
+  'Distensão abdominal','Flatulência excessiva','Refluxo / Azia / Queimação',
+  'Disfagia (dificuldade de engolir)','Dor abdominal',
+  // Sistema Urinário
+  'Polaciúria (urinação frequente)','Urgência miccional','Disúria (ardência ao urinar)',
+  'Incontinência urinária','Hematúria (sangue na urina)',
+  // Sistema Reprodutor
+  'Irregularidade menstrual','Dismenorreia (cólicas intensas)','Fluxo menstrual aumentado',
+  'TPM intensa','Sintomas de menopausa / climatério','Libido baixa',
+  'Ressecamento vaginal','Disfunção erétil',
+  // Sistema Musculoesquelético
+  'Mialgia (dores musculares)','Artralgia (dores articulares)','Artrite / Inflamação articular',
+  'Rigidez matinal','Câimbras','Fraqueza muscular',
+  // Pele e Fâneros
+  'Queda de cabelo (alopecia)','Acne / Espinhas','Manchas na pele',
+  'Pele ressecada','Prurido (coceira)','Unhas quebradiças',
+  'Urticária / Reações alérgicas de pele',
+  // Endócrino / Metabólico
+  'Intolerância ao frio','Intolerância ao calor','Sede excessiva (polidipsia)',
+  'Fome excessiva','Hipoglicemia','Sudorese excessiva',
+  // Saúde Mental
+  'Ansiedade','Depressão / Tristeza persistente','Irritabilidade / Mudanças de humor',
+  'Estresse crônico','Síndrome do pânico',
+  // Outros
+  'Intolerâncias alimentares','Retenção hídrica',
+  'Visão turva / Alterações visuais','Zumbido no ouvido (tinnitus)','Halitose',
+];
+
+let clientsData    = [];
+let currentClientUid = null;
+let anamneseData   = {};
+
+async function loadClients() {
+  const list = document.getElementById('clients-list');
+  if (!list) return;
+  try {
+    const snapUsers = await getDocs(collection(db, 'users'));
+    const usersData = snapUsers.docs.map(d => ({ uid: d.id, ...d.data() })).filter(u => u.name || u.email);
+    
+    let manualClientes = [];
+    try {
+      const snapClientes = await getDocs(collection(db, 'clientes'));
+      manualClientes = snapClientes.docs.map(d => ({ uid: d.id, ...d.data(), isManual: true })).filter(u => u.name);
+    } catch(e) { console.warn("Coleção clientes vazia ou inacessível."); }
+
+    clientsData = [...usersData, ...manualClientes].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+    
+    const countEl = document.getElementById('clients-count');
+    if (countEl) countEl.textContent = `${clientsData.length} cadastrado${clientsData.length !== 1 ? 's' : ''}`;
+    if (!clientsData.length) {
+      list.innerHTML = '<div class="text-center py-16 text-warm-gray/30 text-sm">Nenhum cliente cadastrado ainda.</div>';
+      return;
+    }
+    list.innerHTML = clientsData.map((u, i) => `
+      <div onclick="openClientProfile(${i})"
+        class="bg-white rounded-2xl p-4 shadow-sm border border-rose-light/20 flex items-center gap-4 hover:border-rose-gold/50 hover:shadow-md transition-all cursor-pointer">
+        <div class="w-10 h-10 rounded-full bg-rose-light/30 flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-rose-gold text-xl">person</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-bold text-sm text-navy-brand truncate">${u.name || '—'} ${u.isManual ? '<span class="text-[9px] bg-stone-neutral px-1.5 py-0.5 rounded text-warm-gray/50 ml-1">Manual</span>' : ''}</p>
+          <p class="text-xs text-warm-gray/50 mt-0.5">${u.phone ? u.phone + (u.email ? ' · ' + u.email : '') : (u.email || '—')}</p>
+        </div>
+        <span class="material-symbols-outlined text-warm-gray/25 text-base flex-shrink-0">chevron_right</span>
+      </div>`).join('');
+  } catch {
+    list.innerHTML = '<div class="text-center py-16 text-warm-gray/30 text-sm">Erro ao carregar clientes.</div>';
+  }
+}
+
+window.openNewClientModal = () => {
+  document.getElementById('nc-name').value = '';
+  document.getElementById('nc-phone').value = '';
+  document.getElementById('new-client-modal').classList.remove('hidden');
+};
+window.closeNewClientModal = () => {
+  document.getElementById('new-client-modal').classList.add('hidden');
+};
+window.saveNewClient = async () => {
+  const name = document.getElementById('nc-name').value.trim();
+  const phone = document.getElementById('nc-phone').value.trim();
+  if (!name || !phone) { showToast('Preencha nome e telefone.'); return; }
+  const btn = document.getElementById('nc-btn');
+  btn.textContent = 'Salvando...'; btn.disabled = true;
+  try {
+    await addDoc(collection(db, 'clientes'), { name, phone, createdAt: serverTimestamp() });
+    showToast('Cliente cadastrado!');
+    closeNewClientModal();
+    loadClients();
+  } catch (e) {
+    showToast('Erro ao cadastrar cliente. Verifique permissões.');
+    console.error(e);
+  }
+  btn.textContent = 'Cadastrar'; btn.disabled = false;
+};
+
+window.openClientProfile = async idx => {
+  const u = clientsData[idx];
+  if (!u) return;
+  currentClientUid = u.uid;
+  anamneseData     = {};
+
+  document.getElementById('clients-list-view').classList.add('hidden');
+  document.getElementById('clients-profile-view').classList.remove('hidden');
+  document.getElementById('client-name-display').textContent  = u.name  || '—';
+  document.getElementById('client-phone-display').textContent = u.phone || '';
+  document.getElementById('client-email-display').textContent = u.email || '';
+
+  try {
+    const snap = await getDoc(doc(db, 'anamnese', u.uid));
+    if (snap.exists()) anamneseData = snap.data();
+  } catch {}
+
+  renderAnamneseForm();
+};
+
+window.backToClients = () => {
+  document.getElementById('clients-profile-view').classList.add('hidden');
+  document.getElementById('clients-list-view').classList.remove('hidden');
+  currentClientUid = null;
+};
+
+function renderAnamneseForm() {
+  const d = anamneseData;
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  set('an-nome', d.nome); set('an-nascimento', d.dataNascimento); set('an-idade', d.idade);
+  set('an-sexo', d.sexo); set('an-tipo-sanguineo', d.tipoSanguineo); set('an-estado-civil', d.estadoCivil);
+  set('an-naturalidade', d.naturalidade); set('an-escolaridade', d.escolaridade); set('an-profissao', d.profissao);
+  set('an-endereco', d.endereco); set('an-telefone', d.telefone); set('an-email', d.email);
+  set('an-encaminhado', d.encaminhado); set('an-queixa-principal', d.queixaPrincipal);
+  set('an-doenca-base', d.doencaBase); set('an-complicacoes', d.complicacoes);
+  set('an-saneamento', d.saneamento); set('an-mobilidade', d.mobilidade);
+  set('an-insonia', d.insonia); set('an-etilismo', d.etilismo);
+  set('an-tabagismo', d.tabagismo); set('an-tabagismo-qtd', d.tabagismoQtd);
+  set('an-incontinencias', d.incontinencias); set('an-sonda-fralda', d.sondaFralda);
+  set('an-quimicos', d.quimicos); set('an-atividade-fisica', d.atividadeFisica);
+  set('an-antec-mae', d.antecMae); set('an-antec-pai', d.antecPai);
+  set('an-antec-infancia', d.antecInfancia); set('an-antec-adulto', d.antecAdulto);
+  set('an-cirurgias', d.cirurgias); set('an-acidentes', d.acidentes); set('an-intoxicacoes', d.intoxicacoes);
+  set('an-vacinas', d.vacinas); set('an-filhos', d.filhos);
+  set('an-alergias-detalhe', d.alergias_detalhe); set('an-tratamentos-anteriores', d.tratamentosAnteriores);
+  document.querySelectorAll('#alergias-checks input[type="checkbox"]').forEach(cb => {
+    cb.checked = (d.alergias || []).includes(cb.dataset.alergia);
+  });
+  set('an-med-alop', d.medAlop); set('an-med-fito', d.medFito);
+  set('an-med-chas', d.medChas); set('an-med-suplementos', d.medSuplementos);
+  set('an-peso', d.peso); set('an-altura', d.altura);
+  set('an-pa', d.pa); set('an-fc', d.fc); set('an-temperatura', d.temperatura); set('an-pulsos', d.pulsos);
+  set('an-cintura', d.cintura); set('an-panturrilha-mid', d.panturrilhaMid);
+  set('an-panturrilha-mie', d.panturrilhaMie); set('an-tornozelo-mid', d.tornozeloMid);
+  set('an-tornozelo-mie', d.tornozeloMie);
+  set('an-exame-clinico', d.exameClinIco); set('an-exame-cardio', d.exameCardio);
+  set('an-exame-abdominal', d.exameAbdominal); set('an-exame-pulmonar', d.examePulmonar);
+  const ex = d.exames || {};
+  set('an-exames-data', ex.data); set('an-lab-g6pd', ex.g6pd); set('an-lab-glicose', ex.glicose);
+  set('an-lab-hg-glicada', ex.hgGlicada); set('an-lab-hemograma', ex.hemograma);
+  set('an-lab-ggt', ex.ggt); set('an-lab-tgo', ex.tgo); set('an-lab-tgp', ex.tgp);
+  set('an-lab-tsh', ex.tsh); set('an-lab-t4l', ex.t4l); set('an-lab-t3l', ex.t3l);
+  set('an-lab-vitb12', ex.vitb12); set('an-lab-ferritina', ex.ferritina);
+  set('an-lab-ferro-serico', ex.ferroSerico); set('an-lab-vitd', ex.vitd);
+  set('an-lab-proteinas', ex.proteinas); set('an-lab-pcrus', ex.pcrus);
+  set('an-lab-ddimero', ex.ddimero); set('an-lab-inr', ex.inr); set('an-exames-obs', ex.obs);
+  set('an-conclusao', d.conclusao); set('an-protocolo', d.protocolo);
+  set('an-dose-total', d.doseTotal); set('an-evolucao', d.evolucao);
+  const sc = document.getElementById('sintomas-count');
+  if (sc) sc.textContent = (d.sintomas || []).length;
+  calcIMC();
+  renderSintomas();
+}
+
+window.calcIMC = () => {
+  const peso   = parseFloat(document.getElementById('an-peso')?.value);
+  const altura = parseFloat(document.getElementById('an-altura')?.value);
+  const imcEl  = document.getElementById('an-imc');
+  const clsEl  = document.getElementById('an-imc-class');
+  if (!imcEl) return;
+  if (!peso || !altura || altura < 50) { imcEl.textContent = '—'; if (clsEl) clsEl.textContent = ''; return; }
+  const h   = altura / 100;
+  const imc = peso / (h * h);
+  imcEl.textContent = imc.toFixed(1);
+  let cls;
+  if      (imc < 18.5) cls = 'Abaixo do peso';
+  else if (imc < 25)   cls = 'Peso normal';
+  else if (imc < 30)   cls = 'Sobrepeso';
+  else if (imc < 35)   cls = 'Obesidade grau I';
+  else if (imc < 40)   cls = 'Obesidade grau II';
+  else                  cls = 'Obesidade grau III';
+  clsEl.textContent = cls;
+};
+
+function renderSintomas() {
+  const el  = document.getElementById('sintomas-tags');
+  const sel = anamneseData.sintomas || [];
+  if (!el) return;
+  el.innerHTML = sel.length
+    ? sel.map(s => `<span class="bg-rose-light/40 text-deep-rose text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide">${s}</span>`).join('')
+    : '<span class="text-xs text-warm-gray/30 italic">Nenhum selecionado</span>';
+}
+
+window.openSymptomsModal = () => {
+  const sel = anamneseData.sintomas || [];
+  document.getElementById('symptoms-modal').classList.remove('hidden');
+  document.getElementById('symptoms-grid').innerHTML = SINTOMAS_LIST.map(s => `
+    <label class="flex items-center gap-3 cursor-pointer select-none px-3 py-2.5 rounded-xl hover:bg-stone-neutral transition-colors">
+      <input type="checkbox" data-sym="${s}" ${sel.includes(s) ? 'checked' : ''}
+        onchange="toggleSintoma(this.dataset.sym, this.checked)"
+        class="w-4 h-4 accent-rose-gold flex-shrink-0"/>
+      <span class="text-sm font-medium">${s}</span>
+    </label>`).join('');
+};
+
+window.closeSymptomsModal = () => {
+  document.getElementById('symptoms-modal').classList.add('hidden');
+  renderSintomas();
+};
+
+window.toggleSintoma = (s, checked) => {
+  if (!anamneseData.sintomas) anamneseData.sintomas = [];
+  if (checked) { if (!anamneseData.sintomas.includes(s)) anamneseData.sintomas.push(s); }
+  else         { anamneseData.sintomas = anamneseData.sintomas.filter(x => x !== s); }
+  const el = document.getElementById('sintomas-count');
+  if (el) el.textContent = anamneseData.sintomas.length;
+};
+
+window.toggleAlergia = (alergia, checked) => {
+  if (!anamneseData.alergias) anamneseData.alergias = [];
+  if (checked) { if (!anamneseData.alergias.includes(alergia)) anamneseData.alergias.push(alergia); }
+  else         { anamneseData.alergias = anamneseData.alergias.filter(a => a !== alergia); }
+};
+
+window.saveAnamnese = async () => {
+  if (!currentClientUid) return;
+  const btn = document.getElementById('save-anamnese-btn');
+  btn.textContent = 'Salvando...'; btn.disabled = true;
+  const gv = id => (document.getElementById(id)?.value || '').trim();
+  try {
+    const data = {
+      ...anamneseData,
+      nome: gv('an-nome'), dataNascimento: gv('an-nascimento'), idade: gv('an-idade'),
+      sexo: gv('an-sexo'), tipoSanguineo: gv('an-tipo-sanguineo'), estadoCivil: gv('an-estado-civil'),
+      naturalidade: gv('an-naturalidade'), escolaridade: gv('an-escolaridade'), profissao: gv('an-profissao'),
+      endereco: gv('an-endereco'), telefone: gv('an-telefone'), email: gv('an-email'),
+      encaminhado: gv('an-encaminhado'), queixaPrincipal: gv('an-queixa-principal'),
+      doencaBase: gv('an-doenca-base'), complicacoes: gv('an-complicacoes'),
+      saneamento: gv('an-saneamento'), mobilidade: gv('an-mobilidade'),
+      insonia: gv('an-insonia'), etilismo: gv('an-etilismo'),
+      tabagismo: gv('an-tabagismo'), tabagismoQtd: gv('an-tabagismo-qtd'),
+      incontinencias: gv('an-incontinencias'), sondaFralda: gv('an-sonda-fralda'),
+      quimicos: gv('an-quimicos'), atividadeFisica: gv('an-atividade-fisica'),
+      antecMae: gv('an-antec-mae'), antecPai: gv('an-antec-pai'),
+      antecInfancia: gv('an-antec-infancia'), antecAdulto: gv('an-antec-adulto'),
+      cirurgias: gv('an-cirurgias'), acidentes: gv('an-acidentes'), intoxicacoes: gv('an-intoxicacoes'),
+      vacinas: gv('an-vacinas'), filhos: gv('an-filhos'),
+      alergias: anamneseData.alergias || [], alergias_detalhe: gv('an-alergias-detalhe'),
+      tratamentosAnteriores: gv('an-tratamentos-anteriores'),
+      medAlop: gv('an-med-alop'), medFito: gv('an-med-fito'),
+      medChas: gv('an-med-chas'), medSuplementos: gv('an-med-suplementos'),
+      peso: parseFloat(gv('an-peso')) || null, altura: parseFloat(gv('an-altura')) || null,
+      pa: gv('an-pa'), fc: gv('an-fc'), temperatura: gv('an-temperatura'), pulsos: gv('an-pulsos'),
+      cintura: gv('an-cintura'), panturrilhaMid: gv('an-panturrilha-mid'),
+      panturrilhaMie: gv('an-panturrilha-mie'), tornozeloMid: gv('an-tornozelo-mid'),
+      tornozeloMie: gv('an-tornozelo-mie'),
+      exameClinIco: gv('an-exame-clinico'), exameCardio: gv('an-exame-cardio'),
+      exameAbdominal: gv('an-exame-abdominal'), examePulmonar: gv('an-exame-pulmonar'),
+      exames: {
+        data: gv('an-exames-data'), g6pd: gv('an-lab-g6pd'), glicose: gv('an-lab-glicose'),
+        hgGlicada: gv('an-lab-hg-glicada'), hemograma: gv('an-lab-hemograma'),
+        ggt: gv('an-lab-ggt'), tgo: gv('an-lab-tgo'), tgp: gv('an-lab-tgp'),
+        tsh: gv('an-lab-tsh'), t4l: gv('an-lab-t4l'), t3l: gv('an-lab-t3l'),
+        vitb12: gv('an-lab-vitb12'), ferritina: gv('an-lab-ferritina'),
+        ferroSerico: gv('an-lab-ferro-serico'), vitd: gv('an-lab-vitd'),
+        proteinas: gv('an-lab-proteinas'), pcrus: gv('an-lab-pcrus'),
+        ddimero: gv('an-lab-ddimero'), inr: gv('an-lab-inr'), obs: gv('an-exames-obs'),
+      },
+      conclusao: gv('an-conclusao'), protocolo: gv('an-protocolo'),
+      doseTotal: gv('an-dose-total'), evolucao: gv('an-evolucao'),
+      updatedAt: serverTimestamp(),
+    };
+    await setDoc(doc(db, 'anamnese', currentClientUid), data, { merge: true });
+    anamneseData = { ...anamneseData, ...data };
+    showToast('Ficha salva com sucesso!');
+  } catch (e) {
+    showToast('Erro ao salvar. Verifique as regras do Firestore.');
+    console.error(e);
+  }
+  btn.textContent = 'Salvar ficha'; btn.disabled = false;
+};
+
+window.exportAnamnese = () => {
+  const d  = anamneseData;
+  const g  = v => v || '—';
+  const ex = d.exames || {};
+  const clientName = document.getElementById('client-name-display')?.textContent || '—';
+  const imc_val = (d.peso && d.altura) ? (d.peso / Math.pow(d.altura / 100, 2)).toFixed(1) : '—';
+  const sintomas = d.sintomas || [];
+  const alergias = d.alergias || [];
+
+  const row = (label, value) => (value && value !== '—')
+    ? '<tr><td style="padding:5px 10px;font-size:11px;color:#6B6364;font-weight:600;width:38%;border-bottom:1px solid #F0EBE8;vertical-align:top;">' + label + '</td>'
+      + '<td style="padding:5px 10px;font-size:12px;color:#1D2D44;border-bottom:1px solid #F0EBE8;white-space:pre-wrap;">' + value + '</td></tr>'
+    : '';
+
+  const sec = (num, title, content) =>
+    '<div style="margin-bottom:18px;break-inside:avoid;">'
+    + '<div style="background:#1D2D44;color:#fff;padding:6px 12px;border-radius:8px 8px 0 0;font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;">' + num + ' · ' + title + '</div>'
+    + '<div style="border:1px solid #E5C1CD;border-top:none;border-radius:0 0 8px 8px;overflow:hidden;">'
+    + '<table style="width:100%;border-collapse:collapse;">' + content + '</table></div></div>';
+
+  const labContent =
+    row('G6PD', ex.g6pd) + row('Glicose', ex.glicose) + row('Hg Glicada', ex.hgGlicada)
+    + row('Hemograma', ex.hemograma) + row('GGT', ex.ggt) + row('TGO', ex.tgo)
+    + row('TGP', ex.tgp) + row('TSH', ex.tsh) + row('T4 Livre', ex.t4l)
+    + row('T3 Livre', ex.t3l) + row('Vit B12', ex.vitb12) + row('Ferritina', ex.ferritina)
+    + row('Ferro Sérico', ex.ferroSerico) + row('25OH Vit D', ex.vitd)
+    + row('Proteínas Totais', ex.proteinas) + row('PCRus', ex.pcrus)
+    + row('D Dímero', ex.ddimero) + row('INR', ex.inr) + row('Outros / Obs.', ex.obs);
+
+  const alergiasTxt = alergias.length
+    ? alergias.join(', ') + (d.alergias_detalhe ? ' — ' + d.alergias_detalhe : '')
+    : '';
+
+  const html =
+    '<!DOCTYPE html><html lang="pt-br"><head><meta charset="utf-8"/>'
+    + '<title>Ficha de Anamnese — ' + clientName + '</title>'
+    + '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>'
+    + '<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Montserrat,sans-serif;background:#fff;color:#4A4546;font-size:12px;line-height:1.5;}'
+    + '@media print{.no-print{display:none!important;}@page{margin:14mm 12mm;size:A4;}}'
+    + '.no-print{position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:999;}'
+    + '.btn-print{background:#B76E79;color:#fff;border:none;padding:10px 20px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;}'
+    + '.btn-close{background:#F5F2ED;color:#4A4546;border:1px solid #E5C1CD;padding:10px 16px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;}'
+    + '</style></head><body>'
+    + '<div class="no-print"><button class="btn-close" onclick="window.close()">Fechar</button>'
+    + '<button class="btn-print" onclick="window.print()">&#128438; Imprimir / PDF</button></div>'
+    + '<div style="max-width:760px;margin:0 auto;padding:28px 18px;">'
+    // Header
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;padding-bottom:14px;border-bottom:2.5px solid #B76E79;">'
+    + '<div><div style="font-size:21px;font-weight:800;color:#1D2D44;letter-spacing:-.02em;">Instituto Bioflores</div>'
+    + '<div style="font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#B76E79;margin-top:3px;">Dra. Laura Flores</div></div>'
+    + '<div style="text-align:right;">'
+    + '<div style="font-size:9px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#aaa;">Ficha de Anamnese</div>'
+    + '<div style="font-size:14px;font-weight:800;color:#1D2D44;margin-top:2px;">' + clientName + '</div>'
+    + '<div style="font-size:10px;color:#aaa;margin-top:2px;">Emitido em ' + new Date().toLocaleDateString('pt-BR') + '</div>'
+    + '</div></div>'
+    // Sections
+    + sec('01','Identificação',
+        row('Nome', g(d.nome)) + row('Data de Nascimento', g(d.dataNascimento)) + row('Idade', g(d.idade))
+        + row('Sexo', g(d.sexo)) + row('Tipo Sanguíneo', g(d.tipoSanguineo)) + row('Estado Civil', g(d.estadoCivil))
+        + row('Naturalidade', g(d.naturalidade)) + row('Escolaridade', g(d.escolaridade)) + row('Profissão', g(d.profissao))
+        + row('Endereço', g(d.endereco)) + row('Telefone', g(d.telefone)) + row('E-mail', g(d.email))
+        + row('Encaminhado por', g(d.encaminhado)))
+    + sec('02','Queixa Principal e Histórico',
+        row('Queixa principal', g(d.queixaPrincipal)) + row('Doença de base', g(d.doencaBase))
+        + row('Complicações', g(d.complicacoes)) + row('Saneamento básico', g(d.saneamento))
+        + row('Mobilidade', g(d.mobilidade)) + row('Insônia', g(d.insonia))
+        + row('Etilismo', g(d.etilismo)) + row('Tabagismo', g(d.tabagismo))
+        + row('Qtd. cigarro/dia', g(d.tabagismoQtd)) + row('Incontinências', g(d.incontinencias))
+        + row('Uso de Sonda/Fralda', g(d.sondaFralda)) + row('Substâncias químicas', g(d.quimicos))
+        + row('Atividade física', g(d.atividadeFisica)))
+    + sec('03','Antecedentes',
+        row('Antec. Familiar — Mãe', g(d.antecMae)) + row('Antec. Familiar — Pai', g(d.antecPai))
+        + row('Antec. Pessoal — Infância', g(d.antecInfancia)) + row('Antec. Pessoal — Adulto', g(d.antecAdulto))
+        + row('Cirurgias', g(d.cirurgias)) + row('Acidentes / Traumas', g(d.acidentes))
+        + row('Intoxicações', g(d.intoxicacoes)) + row('Vacinas', g(d.vacinas))
+        + row('Filhos / Parto / Aborto', g(d.filhos))
+        + row('Alergias', alergiasTxt || '—') + row('Tratamentos anteriores', g(d.tratamentosAnteriores)))
+    + sec('04','Medicamentos e Suplementos',
+        row('Alopáticos', g(d.medAlop)) + row('Fitoterápicos', g(d.medFito))
+        + row('Chás', g(d.medChas)) + row('Suplementos', g(d.medSuplementos)))
+    + sec('05','Checklist de Sintomas',
+        '<tr><td colspan="2" style="padding:10px 12px;">'
+        + (sintomas.length
+          ? sintomas.map(s => '<span style="display:inline-block;background:#F2D8DC;color:#8E505A;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;margin:2px 3px;letter-spacing:.04em;">' + s + '</span>').join('')
+          : '<span style="color:#aaa;font-style:italic;font-size:11px;">Nenhum sintoma marcado</span>')
+        + '</td></tr>')
+    + sec('06','Dados Antropométricos e Vitais',
+        row('Peso', d.peso ? d.peso + ' kg' : '—') + row('Altura', d.altura ? d.altura + ' cm' : '—')
+        + row('IMC', imc_val) + row('PA', g(d.pa)) + row('FC', g(d.fc))
+        + row('Temperatura', g(d.temperatura)) + row('Pulsos', g(d.pulsos))
+        + row('Cintura', g(d.cintura)) + row('Panturrilha MID', g(d.panturrilhaMid))
+        + row('Panturrilha MIE', g(d.panturrilhaMie)) + row('Tornozelo MID', g(d.tornozeloMid))
+        + row('Tornozelo MIE', g(d.tornozeloMie)))
+    + sec('07','Avaliação Clínica',
+        row('Exame Clínico Geral', g(d.exameClinIco)) + row('Exame Cardiológico', g(d.exameCardio))
+        + row('Exame Abdominal', g(d.exameAbdominal)) + row('Exame Pulmonar', g(d.examePulmonar)))
+    + sec('08', 'Exames Laboratoriais' + (ex.data ? ' · ' + ex.data : ''), labContent || row('—','Sem exames registrados'))
+    + sec('09','Conclusão Diagnóstica e Protocolo',
+        row('Conclusão Diagnóstica', g(d.conclusao)) + row('Protocolo', g(d.protocolo))
+        + row('Dose Total', g(d.doseTotal)))
+    + sec('10','Evolução', row('Evolução', g(d.evolucao)))
+    // Footer
+    + '<div style="margin-top:30px;padding-top:14px;border-top:1px solid #E5C1CD;display:flex;justify-content:space-between;align-items:flex-end;">'
+    + '<div style="font-size:9px;color:#aaa;letter-spacing:.08em;text-transform:uppercase;">Instituto Bioflores · Dra. Laura Flores</div>'
+    + '<div style="text-align:center;">'
+    + '<div style="border-top:1px solid #1D2D44;width:210px;margin-bottom:5px;"></div>'
+    + '<div style="font-size:9px;color:#4A4546;font-weight:600;letter-spacing:.06em;text-transform:uppercase;">Assinatura / Carimbo</div>'
+    + '</div></div>'
+    + '</div></body></html>';
+
+  const w = window.open('', '_blank');
+  if (w) { w.document.write(html); w.document.close(); }
+  else showToast('Permita pop-ups para exportar o documento.');
+};
+
+// ── IMAGE CROP ────────────────────────────────────────
+let cropperInstance = null;
+let _cropCallback   = null;
+
+function openCropModal(file, aspectRatio, onConfirm) {
+  _cropCallback = onConfirm;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('crop-img');
+    img.src = e.target.result;
+    document.getElementById('crop-modal').classList.remove('hidden');
+    if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+    cropperInstance = new Cropper(img, {
+      aspectRatio,
+      viewMode: 1,
+      dragMode: 'move',
+      autoCropArea: 0.95,
+      guides: true,
+      background: false,
+      cropBoxMovable: true,
+      cropBoxResizable: true,
+      toggleDragModeOnDblclick: true,
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+window.closeCropModal = () => {
+  document.getElementById('crop-modal').classList.add('hidden');
+  if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+  _cropCallback = null;
+};
+
+window.confirmCrop = () => {
+  if (!cropperInstance || !_cropCallback) return;
+  const btn = document.getElementById('crop-confirm-btn');
+  btn.textContent = 'Processando...'; btn.disabled = true;
+  cropperInstance.getCroppedCanvas({ maxWidth: 1920, maxHeight: 1920, imageSmoothingQuality: 'high' })
+    .toBlob(blob => {
+      const file = new File([blob], 'imagem.jpg', { type: 'image/jpeg' });
+      closeCropModal();
+      btn.textContent = 'Confirmar'; btn.disabled = false;
+      _cropCallback(file);
+    }, 'image/jpeg', 0.92);
+};
+
+// ── TOAST ────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.opacity='1';
+  setTimeout(()=>{ t.style.opacity='0'; }, 3000);
+}
+
+document.addEventListener('contextmenu',e=>e.preventDefault());
+</script>
+</body>
+</html>

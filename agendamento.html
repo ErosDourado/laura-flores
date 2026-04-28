@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Agendamento | Bioflores</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="icon" type="image/png" href="assets/icon-192.png"/>
+<link rel="apple-touch-icon" href="assets/icon-192.png"/>
+<meta name="theme-color" content="#B76E79"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="Bioflores"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        "rose-gold":    "#B76E79",
+        "rose-light":   "#E5C1CD",
+        "deep-rose":    "#8E505A",
+        "stone-neutral":"#F5F2ED",
+        "warm-gray":    "#4A4546",
+        "navy-brand":   "#1D2D44"
+      },
+      fontFamily: { body: ["Montserrat", "sans-serif"] }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family:'Montserrat',sans-serif; }
+  .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+  .slot-btn { transition: all .15s; }
+  .slot-btn.taken { opacity:.4; cursor:not-allowed; text-decoration:line-through; }
+  .cal-day:not(.disabled):not(.empty):hover { background:#E5C1CD; cursor:pointer; }
+  .cal-day.selected { background:#B76E79 !important; color:#fff !important; font-weight:700; }
+  .cal-day.today { border:2px solid #B76E79; }
+  .cal-day.disabled { opacity:.3; cursor:not-allowed; }
+  body { -webkit-user-select:none; user-select:none; }
+  input, textarea, select { -webkit-user-select:text; user-select:text; }
+</style>
+</head>
+<body class="bg-stone-neutral text-warm-gray font-body min-h-screen flex flex-col">
+
+<!-- Header -->
+<header class="bg-white border-b border-rose-light/30 px-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+  <a href="index.html" class="flex items-center gap-3">
+    <img src="assets/logo.png" alt="Logo" class="h-10 object-contain"/>
+    <div class="leading-tight">
+      <p class="text-[9px] uppercase tracking-[0.2em] text-warm-gray/40 font-semibold">Instituto</p>
+      <p class="font-black text-sm text-navy-brand uppercase tracking-tight">Bioflores</p>
+    </div>
+  </a>
+  <a href="index.html" class="flex items-center gap-1.5 text-xs font-bold text-warm-gray/50 hover:text-rose-gold transition-colors">
+    <span class="material-symbols-outlined text-base">arrow_back</span>Voltar ao site
+  </a>
+</header>
+
+<!-- Hero strip -->
+<div class="bg-rose-gold text-white py-8 px-4 text-center">
+  <h1 class="font-black text-xl md:text-2xl uppercase tracking-tight mb-1">Agende seu atendimento</h1>
+  <p class="text-white/80 text-sm">Escolha o serviço, data e horário de sua preferência</p>
+</div>
+
+<!-- Progress -->
+<div class="bg-white border-b border-rose-light/30 px-4 py-4">
+  <div class="max-w-3xl mx-auto flex items-center gap-0">
+    <div class="step-item flex items-center gap-2" data-step="1">
+      <div class="step-num w-7 h-7 rounded-full bg-rose-gold text-white text-xs font-black flex items-center justify-center flex-shrink-0">1</div>
+      <span class="text-[10px] font-bold uppercase tracking-wider text-rose-gold hidden sm:block">Serviço</span>
+    </div>
+    <div class="flex-1 h-px bg-rose-light/50 mx-2"></div>
+    <div class="step-item flex items-center gap-2" data-step="2">
+      <div class="step-num w-7 h-7 rounded-full bg-gray-200 text-warm-gray/40 text-xs font-black flex items-center justify-center flex-shrink-0">2</div>
+      <span class="text-[10px] font-bold uppercase tracking-wider text-warm-gray/30 hidden sm:block">Data e hora</span>
+    </div>
+    <div class="flex-1 h-px bg-rose-light/50 mx-2"></div>
+    <div class="step-item flex items-center gap-2" data-step="3">
+      <div class="step-num w-7 h-7 rounded-full bg-gray-200 text-warm-gray/40 text-xs font-black flex items-center justify-center flex-shrink-0">3</div>
+      <span class="text-[10px] font-bold uppercase tracking-wider text-warm-gray/30 hidden sm:block">Seus dados</span>
+    </div>
+    <div class="flex-1 h-px bg-rose-light/50 mx-2"></div>
+    <div class="step-item flex items-center gap-2" data-step="4">
+      <div class="step-num w-7 h-7 rounded-full bg-gray-200 text-warm-gray/40 text-xs font-black flex items-center justify-center flex-shrink-0">✓</div>
+      <span class="text-[10px] font-bold uppercase tracking-wider text-warm-gray/30 hidden sm:block">Confirmação</span>
+    </div>
+  </div>
+</div>
+
+<main class="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
+
+  <!-- STEP 1 — Serviço -->
+  <div id="step-1" class="step-section">
+    <h2 class="font-black text-base uppercase tracking-tight text-navy-brand mb-5">Qual serviço você deseja?</h2>
+    <div id="services-grid" class="grid sm:grid-cols-2 gap-4">
+      <div class="col-span-2 text-center py-12 text-warm-gray/40 text-sm">Carregando serviços...</div>
+    </div>
+  </div>
+
+  <!-- STEP 2 — Data e hora -->
+  <div id="step-2" class="step-section hidden">
+    <button onclick="goStep(1)" class="flex items-center gap-1.5 text-xs font-bold text-warm-gray/50 hover:text-rose-gold mb-6 transition-colors cursor-pointer">
+      <span class="material-symbols-outlined text-base">arrow_back</span>Voltar
+    </button>
+    <div class="grid md:grid-cols-2 gap-6">
+      <!-- Calendar -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20">
+        <div class="flex items-center justify-between mb-4">
+          <button onclick="prevMonth()" class="text-warm-gray/40 hover:text-rose-gold cursor-pointer transition-colors">
+            <span class="material-symbols-outlined">chevron_left</span>
+          </button>
+          <p id="cal-title" class="text-sm font-bold uppercase tracking-wide"></p>
+          <button onclick="nextMonth()" class="text-warm-gray/40 hover:text-rose-gold cursor-pointer transition-colors">
+            <span class="material-symbols-outlined">chevron_right</span>
+          </button>
+        </div>
+        <div class="grid grid-cols-7 gap-1 mb-2">
+          <div class="text-[10px] font-bold text-center text-warm-gray/40 uppercase">D</div>
+          <div class="text-[10px] font-bold text-center text-warm-gray/40 uppercase">S</div>
+          <div class="text-[10px] font-bold text-center text-warm-gray/40 uppercase">T</div>
+          <div class="text-[10px] font-bold text-center text-warm-gray/40 uppercase">Q</div>
+          <div class="text-[10px] font-bold text-center text-warm-gray/40 uppercase">Q</div>
+          <div class="text-[10px] font-bold text-center text-warm-gray/40 uppercase">S</div>
+          <div class="text-[10px] font-bold text-center text-warm-gray/40 uppercase">S</div>
+        </div>
+        <div id="cal-grid" class="grid grid-cols-7 gap-1"></div>
+      </div>
+      <!-- Time slots -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-warm-gray/40 mb-4">Horários disponíveis</p>
+        <div id="slots-grid" class="grid grid-cols-3 gap-2">
+          <div class="col-span-3 text-center py-8 text-warm-gray/30 text-xs">Selecione uma data</div>
+        </div>
+      </div>
+    </div>
+    <div class="mt-6 flex justify-end">
+      <button id="btn-step2" onclick="goStep(3)" disabled class="bg-rose-gold text-white px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-deep-rose transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
+        Continuar
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 3 — Dados do cliente -->
+  <div id="step-3" class="step-section hidden">
+    <button onclick="goStep(2)" class="flex items-center gap-1.5 text-xs font-bold text-warm-gray/50 hover:text-rose-gold mb-6 transition-colors cursor-pointer">
+      <span class="material-symbols-outlined text-base">arrow_back</span>Voltar
+    </button>
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 mb-5">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-warm-gray/40 mb-3">Resumo do agendamento</p>
+      <div class="flex flex-col divide-y divide-rose-light/30 text-sm">
+        <div class="flex items-center justify-between py-2.5">
+          <span class="text-[9px] text-warm-gray/40 uppercase tracking-widest font-bold">Serviço</span>
+          <span class="font-bold text-navy-brand text-right max-w-[60%]" id="summary-service">—</span>
+        </div>
+        <div class="flex items-center justify-between py-2.5">
+          <span class="text-[9px] text-warm-gray/40 uppercase tracking-widest font-bold">Data</span>
+          <span class="font-bold text-navy-brand" id="summary-date">—</span>
+        </div>
+        <div class="flex items-center justify-between py-2.5">
+          <span class="text-[9px] text-warm-gray/40 uppercase tracking-widest font-bold">Horário</span>
+          <span class="font-bold text-navy-brand" id="summary-time">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 space-y-4">
+      <h2 class="font-black text-base uppercase tracking-tight text-navy-brand mb-4">Seus dados</h2>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Nome completo *</label>
+        <input id="client-name" type="text" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="Seu nome completo"/>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Celular (WhatsApp) *</label>
+        <input id="client-phone" type="tel" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="(65) 9 9999-9999"/>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">E-mail</label>
+        <input id="client-email" type="email" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="seu@email.com"/>
+      </div>
+      <p id="form-error" class="text-red-500 text-xs hidden"></p>
+      <button onclick="submitBooking()" id="btn-submit" class="w-full bg-rose-gold text-white py-4 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer mt-2">
+        Confirmar agendamento
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 4 — Confirmação -->
+  <div id="step-4" class="step-section hidden text-center py-12 px-4">
+    <div class="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
+      <span class="material-symbols-outlined text-green-600 text-4xl">check_circle</span>
+    </div>
+    <h2 class="font-black text-xl text-navy-brand uppercase tracking-tight mb-3">Agendamento confirmado!</h2>
+    <p class="text-warm-gray/70 text-sm max-w-sm mx-auto mb-8">Recebemos sua solicitação. Em breve entraremos em contato pelo WhatsApp para confirmar.</p>
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 max-w-sm mx-auto text-left mb-8">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-warm-gray/40 mb-3">Detalhes</p>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between"><span class="text-warm-gray/60">Serviço</span><span class="font-bold" id="conf-service">—</span></div>
+        <div class="flex justify-between"><span class="text-warm-gray/60">Data</span><span class="font-bold" id="conf-date">—</span></div>
+        <div class="flex justify-between"><span class="text-warm-gray/60">Horário</span><span class="font-bold" id="conf-time">—</span></div>
+        <div class="flex justify-between"><span class="text-warm-gray/60">Nome</span><span class="font-bold" id="conf-name">—</span></div>
+      </div>
+    </div>
+    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+      <a id="conf-wa-link" href="#" target="_blank" class="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-bold text-sm transition-colors cursor-pointer">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>
+        Falar no WhatsApp
+      </a>
+      <a href="index.html" class="flex items-center justify-center gap-2 border border-rose-light/50 text-warm-gray px-6 py-3 rounded-xl font-bold text-sm hover:bg-white transition-colors cursor-pointer">
+        Voltar ao site
+      </a>
+    </div>
+  </div>
+
+</main>
+
+<script type="module">
+import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, collection, doc, addDoc, getDocs, getDoc, query, where, serverTimestamp }
+                            from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+const app = initializeApp({
+  apiKey:            "AIzaSyAcZx6vU7bvWx3hzclQ98PfdqulqiQSvX8",
+  authDomain:        "lauraflores-10360.firebaseapp.com",
+  projectId:         "lauraflores-10360",
+  storageBucket:     "lauraflores-10360.firebasestorage.app",
+  messagingSenderId: "1043899124552",
+  appId:             "1:1043899124552:web:afcc0a6ee44cf4edc2017d"
+});
+const db   = getFirestore(app);
+const auth = getAuth(app);
+let currentUser = null;
+onAuthStateChanged(auth, user => { currentUser = user; });
+
+// ── STATE ─────────────────────────────────────────────
+let selectedService = null;
+let selectedDate    = null;   // 'YYYY-MM-DD'
+let selectedTime    = null;
+let availability    = { days:[1,2,3,4,5], start:'09:00', end:'18:00', interval:60 };
+let takenSlots      = [];     // ['HH:MM', ...]
+let waNumber        = '';
+
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let calYear, calMonth;
+
+// ── INIT ─────────────────────────────────────────────
+(async () => {
+  const now = new Date();
+  calYear = now.getFullYear(); calMonth = now.getMonth();
+
+  // Load dados.json for WhatsApp number
+  try { const r = await fetch('dados.json'); const d = await r.json(); waNumber = d.whatsapp || ''; } catch {}
+
+  // Load availability
+  try {
+    const snap = await getDoc(doc(db, 'content', 'availability'));
+    if (snap.exists()) availability = { ...availability, ...snap.data() };
+  } catch {}
+
+  // Load services
+  await loadServices();
+})();
+
+async function loadServices() {
+  const grid = document.getElementById('services-grid');
+  try {
+    const snap = await getDocs(query(collection(db, 'services')));
+    const svcs = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => s.active).sort((a,b) => a.order - b.order);
+    if (!svcs.length) { grid.innerHTML = '<div class="col-span-2 text-center py-12 text-warm-gray/40 text-sm">Nenhum serviço disponível no momento.</div>'; return; }
+    grid.innerHTML = svcs.map(s => `
+      <button onclick="selectService('${s.id}','${s.name.replace(/'/g,"\\'")}', this)"
+        class="svc-card text-left p-5 bg-white rounded-2xl border-2 border-rose-light/30 hover:border-rose-gold shadow-sm transition-all cursor-pointer">
+        <div class="w-10 h-10 rounded-xl bg-rose-light/30 flex items-center justify-center mb-3">
+          <span class="material-symbols-outlined text-rose-gold text-xl">spa</span>
+        </div>
+        <h3 class="font-bold text-sm uppercase tracking-wide text-navy-brand mb-1">${s.name}</h3>
+        <p class="text-xs text-warm-gray/60 leading-relaxed">${s.description || ''}</p>
+      </button>`).join('');
+  } catch { grid.innerHTML = '<div class="col-span-2 text-center py-12 text-red-400 text-sm">Erro ao carregar serviços.</div>'; }
+}
+
+window.selectService = (id, name, el) => {
+  selectedService = { id, name };
+  document.querySelectorAll('.svc-card').forEach(c => c.classList.remove('border-rose-gold','bg-rose-light/10'));
+  el.classList.add('border-rose-gold','bg-rose-light/10');
+  setTimeout(() => goStep(2), 300);
+};
+
+// ── CALENDAR ─────────────────────────────────────────
+function buildCalendar() {
+  const title  = document.getElementById('cal-title');
+  const grid   = document.getElementById('cal-grid');
+  const today  = new Date();
+  today.setHours(0,0,0,0);
+  title.textContent = `${MONTHS_PT[calMonth]} ${calYear}`;
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day empty h-9"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date    = new Date(calYear, calMonth, d);
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isPast    = date < today;
+    const allowed   = availability.days.includes(date.getDay());
+    const isBlocked = (availability.blocked || []).includes(dateStr);
+    const isToday   = date.getTime() === today.getTime();
+    const isSel     = dateStr === selectedDate;
+    const disabled  = isPast || !allowed || isBlocked;
+    html += `<div onclick="${disabled ? '' : `pickDate('${dateStr}')`}"
+      class="cal-day h-9 flex items-center justify-center rounded-xl text-sm font-semibold transition-all
+        ${disabled ? 'disabled text-warm-gray/20' : 'text-warm-gray hover:bg-rose-light/40 cursor-pointer'}
+        ${isToday ? 'today' : ''}
+        ${isSel ? 'selected' : ''}">${d}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+window.prevMonth = () => { calMonth--; if (calMonth < 0) { calMonth=11; calYear--; } buildCalendar(); };
+window.nextMonth = () => { calMonth++; if (calMonth > 11) { calMonth=0; calYear++; } buildCalendar(); };
+
+window.pickDate = async dateStr => {
+  selectedDate = dateStr; selectedTime = null;
+  document.getElementById('btn-step2').disabled = true;
+  buildCalendar();
+  await loadSlots(dateStr);
+};
+
+async function loadSlots(dateStr) {
+  const grid = document.getElementById('slots-grid');
+  grid.innerHTML = '<div class="col-span-3 text-center py-4 text-warm-gray/30 text-xs">Carregando...</div>';
+
+  // Fetch taken slots for this date
+  try {
+    const snap = await getDocs(query(collection(db,'appointments'), where('date','==',dateStr), where('status','!=','cancelled')));
+    takenSlots = snap.docs.map(d => d.data().time);
+  } catch { takenSlots = []; }
+
+  const slots = generateSlots();
+  if (!slots.length) { grid.innerHTML = '<div class="col-span-3 text-center py-8 text-warm-gray/30 text-xs">Sem horários disponíveis</div>'; return; }
+
+  grid.innerHTML = slots.map(s => {
+    const taken = takenSlots.includes(s);
+    return `<button onclick="${taken ? '' : `pickSlot('${s}', this)`}"
+      class="slot-btn py-2.5 text-xs font-bold rounded-xl border-2 transition-all
+        ${taken ? 'taken border-gray-100 bg-gray-50 text-warm-gray/30' : 'border-rose-light/40 bg-white hover:border-rose-gold hover:bg-rose-light/10 text-warm-gray cursor-pointer'}"
+      ${taken ? 'disabled' : ''}>${s}</button>`;
+  }).join('');
+}
+
+function generateSlots() {
+  const slots = [];
+  const [sh, sm] = availability.start.split(':').map(Number);
+  const [eh, em] = availability.end.split(':').map(Number);
+  let cur = sh * 60 + sm;
+  const end = eh * 60 + em;
+
+  let lunchStart = -1, lunchEnd = -1;
+  if (availability.lunchEnabled && availability.lunchStart && availability.lunchEnd) {
+    const [lsh, lsm] = availability.lunchStart.split(':').map(Number);
+    const [leh, lem] = availability.lunchEnd.split(':').map(Number);
+    lunchStart = lsh * 60 + lsm;
+    lunchEnd   = leh * 60 + lem;
+  }
+
+  while (cur < end) {
+    const inLunch = lunchStart >= 0 && cur >= lunchStart && cur < lunchEnd;
+    if (!inLunch) slots.push(`${String(Math.floor(cur/60)).padStart(2,'0')}:${String(cur%60).padStart(2,'0')}`);
+    cur += availability.interval;
+  }
+  return slots;
+}
+
+window.pickSlot = (time, el) => {
+  selectedTime = time;
+  document.querySelectorAll('.slot-btn:not(.taken)').forEach(b => b.classList.remove('border-rose-gold','bg-rose-light/20','text-rose-gold'));
+  el.classList.add('border-rose-gold','bg-rose-light/20','text-rose-gold');
+  document.getElementById('btn-step2').disabled = false;
+};
+
+// ── STEPS ────────────────────────────────────────────
+window.goStep = step => {
+  if (step === 2) { buildCalendar(); }
+  if (step === 3) {
+    if (!selectedDate || !selectedTime) return;
+    const [y,m,d] = selectedDate.split('-');
+    const dateFormatted = `${d}/${m}/${y}`;
+    document.getElementById('summary-service').textContent = selectedService?.name || '—';
+    document.getElementById('summary-date').textContent = dateFormatted;
+    document.getElementById('summary-time').textContent = selectedTime;
+  }
+  document.querySelectorAll('.step-section').forEach(s => s.classList.add('hidden'));
+  document.getElementById(`step-${step}`).classList.remove('hidden');
+
+  // Update progress
+  document.querySelectorAll('.step-item').forEach(item => {
+    const n = parseInt(item.dataset.step);
+    const num = item.querySelector('.step-num');
+    if (n < step) { num.className = 'step-num w-7 h-7 rounded-full bg-green-500 text-white text-xs font-black flex items-center justify-center flex-shrink-0'; num.textContent = '✓'; item.querySelector('span:last-child') && (item.querySelector('span:last-child').className = 'text-[10px] font-bold uppercase tracking-wider text-green-600 hidden sm:block'); }
+    else if (n === step) { num.className = 'step-num w-7 h-7 rounded-full bg-rose-gold text-white text-xs font-black flex items-center justify-center flex-shrink-0'; num.textContent = n; item.querySelector('span:last-child') && (item.querySelector('span:last-child').className = 'text-[10px] font-bold uppercase tracking-wider text-rose-gold hidden sm:block'); }
+    else { num.className = 'step-num w-7 h-7 rounded-full bg-gray-200 text-warm-gray/40 text-xs font-black flex items-center justify-center flex-shrink-0'; num.textContent = n === 4 ? '✓' : n; item.querySelector('span:last-child') && (item.querySelector('span:last-child').className = 'text-[10px] font-bold uppercase tracking-wider text-warm-gray/30 hidden sm:block'); }
+  });
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+// ── SUBMIT ───────────────────────────────────────────
+window.submitBooking = async () => {
+  const name  = document.getElementById('client-name').value.trim();
+  const phone = document.getElementById('client-phone').value.trim();
+  const email = document.getElementById('client-email').value.trim();
+  const err   = document.getElementById('form-error');
+  const btn   = document.getElementById('btn-submit');
+
+  if (!name || !phone) { err.textContent = 'Preencha nome e celular para continuar.'; err.classList.remove('hidden'); return; }
+  err.classList.add('hidden');
+  btn.textContent = 'Confirmando...'; btn.disabled = true;
+
+  const [y,m,d] = selectedDate.split('-');
+  const dateFormatted = `${d}/${m}/${y}`;
+
+  try {
+    await addDoc(collection(db,'appointments'), {
+      clientName:  name,
+      phone,
+      email,
+      serviceId:   selectedService.id,
+      serviceName: selectedService.name,
+      date:        dateFormatted,
+      time:        selectedTime,
+      status:      'pending',
+      createdAt:   serverTimestamp(),
+      ...(currentUser ? { userId: currentUser.uid } : {}),
+    });
+
+    // Show confirmation
+    document.getElementById('conf-service').textContent = selectedService.name;
+    document.getElementById('conf-date').textContent    = dateFormatted;
+    document.getElementById('conf-time').textContent    = selectedTime;
+    document.getElementById('conf-name').textContent    = name;
+
+    if (waNumber) {
+      const msg = encodeURIComponent(`Olá! Gostaria de confirmar meu agendamento:\n\n*Serviço:* ${selectedService.name}\n*Data:* ${dateFormatted}\n*Horário:* ${selectedTime}\n*Nome:* ${name}`);
+      document.getElementById('conf-wa-link').href = `https://wa.me/${waNumber}?text=${msg}`;
+    } else {
+      document.getElementById('conf-wa-link').classList.add('hidden');
+    }
+
+    goStep(4);
+  } catch (e) {
+    err.textContent = 'Erro ao confirmar agendamento. Tente novamente.';
+    err.classList.remove('hidden');
+    btn.textContent = 'Confirmar agendamento'; btn.disabled = false;
+  }
+};
+</script>
+<script>document.addEventListener('contextmenu',e=>e.preventDefault());</script>
+</body>
+</html>

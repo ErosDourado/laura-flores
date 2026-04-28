@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8"/>
+<title>Gerador de Ícone | Bioflores</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; background: #F5F2ED; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+  .card { background: white; border-radius: 20px; padding: 40px; max-width: 480px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,.1); text-align: center; }
+  h2 { color: #1D2D44; margin-bottom: 6px; font-size: 18px; }
+  p { color: #7a6f70; font-size: 14px; line-height: 1.6; }
+  .preview-wrap { display: flex; gap: 24px; justify-content: center; margin: 28px 0; }
+  .preview-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .preview-item span { font-size: 11px; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  canvas { border-radius: 22%; box-shadow: 0 4px 16px rgba(0,0,0,.15); }
+  .btn { display: inline-block; background: #B76E79; color: white; border: none; padding: 14px 32px; border-radius: 12px; cursor: pointer; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; margin-top: 8px; width: 100%; }
+  .btn:hover { background: #8E505A; }
+  .status { margin-top: 16px; font-size: 13px; color: #B76E79; font-weight: 600; min-height: 20px; }
+  .step { background: #F5F2ED; border-radius: 12px; padding: 16px; margin-top: 20px; text-align: left; font-size: 13px; color: #4A4546; line-height: 1.7; }
+  .step b { color: #1D2D44; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>🖼 Gerador de Ícone do App</h2>
+  <p>Gera os ícones da Bioflores com fundo branco e tamanho correto para aparecer na tela inicial do celular.</p>
+
+  <div class="preview-wrap">
+    <div class="preview-item">
+      <canvas id="c192" width="192" height="192" style="width:96px;height:96px"></canvas>
+      <span>192 × 192</span>
+    </div>
+    <div class="preview-item">
+      <canvas id="c512" width="512" height="512" style="width:96px;height:96px"></canvas>
+      <span>512 × 512</span>
+    </div>
+  </div>
+
+  <button class="btn" id="dl-btn" onclick="downloadBoth()" disabled>Baixar os dois ícones</button>
+  <div class="status" id="status">Gerando pré-visualização...</div>
+
+  <div class="step">
+    <b>Depois de baixar:</b><br>
+    1. Mova <b>icon-192.png</b> e <b>icon-512.png</b> para a pasta <b>assets/</b><br>
+    2. Me diga "ícones colocados" e farei o deploy
+  </div>
+</div>
+
+<script>
+function drawIcon(canvas, size) {
+  return new Promise((resolve, reject) => {
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+
+    const img = new Image();
+    img.onload = () => {
+      const padding = size * 0.18;
+      const maxW = size - padding * 2;
+      const maxH = size - padding * 2;
+      const ratio = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+      const w = img.naturalWidth * ratio;
+      const h = img.naturalHeight * ratio;
+      const x = (size - w) / 2;
+      const y = (size - h) / 2;
+      ctx.drawImage(img, x, y, w, h);
+      resolve();
+    };
+    img.onerror = reject;
+    img.src = 'assets/logo.png';
+  });
+}
+
+function downloadCanvas(canvas, filename) {
+  return new Promise(resolve => {
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(resolve, 800);
+    }, 'image/png');
+  });
+}
+
+window.downloadBoth = async () => {
+  document.getElementById('dl-btn').disabled = true;
+  document.getElementById('status').textContent = 'Baixando icon-192.png...';
+  await downloadCanvas(document.getElementById('c192'), 'icon-192.png');
+  document.getElementById('status').textContent = 'Baixando icon-512.png...';
+  await downloadCanvas(document.getElementById('c512'), 'icon-512.png');
+  document.getElementById('status').textContent = '✓ Prontos! Agora coloque na pasta assets/ e me avise.';
+  document.getElementById('dl-btn').disabled = false;
+};
+
+(async () => {
+  try {
+    await Promise.all([
+      drawIcon(document.getElementById('c192'), 192),
+      drawIcon(document.getElementById('c512'), 512),
+    ]);
+    document.getElementById('status').textContent = 'Pré-visualização pronta. Clique para baixar.';
+    document.getElementById('dl-btn').disabled = false;
+  } catch {
+    document.getElementById('status').textContent = 'Erro ao carregar a logo. Abra no servidor local.';
+  }
+})();
+</script>
+</body>
+</html>

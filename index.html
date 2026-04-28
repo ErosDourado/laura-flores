@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Bioflores | Estética Avançada</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="icon" type="image/png" href="assets/icon-192.png"/>
+<link rel="apple-touch-icon" href="assets/icon-192.png"/>
+<meta name="theme-color" content="#B76E79"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="Bioflores"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              "rose-gold": "#B76E79",
+              "rose-light": "#E5C1CD",
+              "gold-accent": "#D4AF37",
+              "stone-neutral": "#F5F2ED",
+              "deep-rose": "#8E505A",
+              "warm-gray": "#4A4546",
+              "navy-brand": "#1D2D44"
+            },
+            fontFamily: {
+              "headline": ["Montserrat", "sans-serif"],
+              "body": ["Montserrat", "sans-serif"]
+            },
+            borderRadius: {
+              "custom": "0.5rem"
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .hero-overlay {
+            background: linear-gradient(to bottom, rgba(245, 242, 237, 0.95), rgba(245, 242, 237, 0.6));
+        }
+        @media (min-width: 768px) {
+            .hero-overlay {
+                background: linear-gradient(to right, rgba(245, 242, 237, 0.9), rgba(245, 242, 237, 0.4));
+            }
+        }
+        .bg-rose-section {
+            background-color: #B76E79;
+        }
+        body {
+            font-family: 'Montserrat', sans-serif;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        body { -webkit-user-select:none; user-select:none; }
+        input, textarea, select { -webkit-user-select:text; user-select:text; }
+        #mobile-drawer {
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #mobile-drawer.open { transform: translateX(0); }
+        #drawer-overlay {
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        #drawer-overlay.open { opacity: 1; pointer-events: auto; }
+        @media (min-width: 768px) {
+          #procedure-carousel {
+            scroll-padding-left: calc((100% - 850px) / 2);
+            padding-left: calc((100% - 850px) / 2);
+            padding-right: calc((100% - 850px) / 2);
+          }
+        }
+        .proc-anim-item { opacity: 0; }
+        @keyframes proc-slide-in {
+          from { opacity: 0; transform: translateX(32px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        .proc-card-animate { animation: proc-slide-in 0.52s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+    </style>
+</head>
+<body class="bg-stone-neutral text-warm-gray font-body selection:bg-rose-gold selection:text-white overflow-x-hidden">
+<!-- Header / Navigation -->
+<header class="fixed top-0 w-full z-50 bg-white/95 backdrop-blur-sm border-b border-rose-light/30">
+<div class="max-w-7xl mx-auto px-4 md:px-6 py-4 flex justify-between items-center">
+<div class="flex items-center gap-2">
+<a class="flex items-center" href="#">
+<img alt="Laura Flores Logo" class="h-10 md:h-12 w-auto object-contain" src="assets/logo.png" style="max-width: 150px;"/>
+<span class="font-headline font-bold text-base md:text-lg tracking-tight whitespace-nowrap">
+<div class="flex flex-col leading-tight -space-y-1 ml-2 md:ml-3" style="color: #1D2D44;">
+<span class="font-light text-[10px] md:text-sm uppercase tracking-[0.2em]">Instituto</span>
+<span class="font-bold text-base md:text-xl uppercase tracking-tighter">Bioflores</span>
+</div>
+</span>
+</a>
+</div>
+<div class="flex items-center gap-2">
+  <!-- Desktop: WA + auth buttons -->
+  <a id="header-wa" href="#" target="_blank" class="hidden md:flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-colors">
+    <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>
+    WhatsApp
+  </a>
+  <div id="desktop-auth-section" class="hidden md:flex items-center gap-2">
+    <!-- populated by Firebase Auth -->
+  </div>
+  <!-- Mobile burger -->
+  <button onclick="openDrawer()" class="md:hidden flex flex-col justify-center items-center w-9 h-9 gap-[5px] cursor-pointer" aria-label="Menu">
+    <span class="block w-[5px] h-[5px] rounded-full bg-warm-gray/50"></span>
+    <span class="block w-[5px] h-[5px] rounded-full bg-warm-gray/50"></span>
+    <span class="block w-[5px] h-[5px] rounded-full bg-warm-gray/50"></span>
+  </button>
+</div>
+</div>
+</header>
+
+<!-- Mobile Drawer Overlay -->
+<div id="drawer-overlay" onclick="closeDrawer()" class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"></div>
+
+<!-- Mobile Drawer -->
+<div id="mobile-drawer" class="fixed top-0 right-0 h-full w-60 bg-white z-50 flex flex-col shadow-2xl">
+  <div class="flex items-center justify-between px-6 py-5 border-b border-rose-light/30">
+    <div class="flex flex-col leading-tight" style="color:#1D2D44">
+      <span class="font-light text-[9px] uppercase tracking-[0.25em]">Instituto</span>
+      <span class="font-black text-base uppercase tracking-tighter">Bioflores</span>
+    </div>
+    <button onclick="closeDrawer()" class="text-warm-gray/40 hover:text-rose-gold transition-colors cursor-pointer">
+      <span class="material-symbols-outlined text-xl">close</span>
+    </button>
+  </div>
+  <div class="flex flex-col px-6 py-8 gap-3 flex-1">
+    <a id="drawer-wa" href="#" target="_blank" class="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white py-3.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors">
+      <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>
+      WhatsApp
+    </a>
+    <div id="drawer-auth-section" class="flex flex-col gap-3">
+      <!-- preenchido dinamicamente pelo Firebase Auth -->
+    </div>
+  </div>
+</div>
+
+<script>
+  let _drawerScrollY = 0;
+  function openDrawer() {
+    _drawerScrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = '-' + _drawerScrollY + 'px';
+    document.body.style.width = '100%';
+    document.getElementById('mobile-drawer').classList.add('open');
+    document.getElementById('drawer-overlay').classList.add('open');
+  }
+  function closeDrawer() {
+    document.getElementById('mobile-drawer').classList.remove('open');
+    document.getElementById('drawer-overlay').classList.remove('open');
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    window.scrollTo(0, _drawerScrollY);
+  }
+</script>
+
+<main>
+<!-- Hero Section -->
+<section class="relative min-h-[85vh] flex items-center pt-24 md:pt-20 overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img alt="Clinic background" class="w-full h-full object-cover" src="assets/treatment.png"/>
+<div class="absolute inset-0 hero-overlay"></div>
+</div>
+<div class="max-w-7xl mx-auto px-4 md:px-6 w-full relative z-10 text-center md:text-left">
+<div class="max-w-2xl flex flex-col items-center md:items-start text-center md:text-left">
+<h1 class="font-headline text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-warm-gray mb-6 leading-tight uppercase tracking-tight">Descubra o poder da<br/><span class="bg-rose-gold text-white px-2 md:px-4 py-1 inline-block mt-2 rounded-sm">ozonioterapia</span></h1>
+<p class="text-sm md:text-base text-warm-gray mb-0 leading-relaxed max-w-lg font-normal bg-white/55 backdrop-blur-sm px-4 py-3 rounded-lg">
+  Revele a sua melhor versão com nossos procedimentos exclusivos, feitos sob medida para realçar a sua beleza natural. Cada tratamento combina rejuvenescimento, firmeza e confiança.
+</p>
+</div>
+</div>
+</section>
+
+<!-- Promotional Card (dynamic, hidden until loaded) -->
+<div id="promo-section" class="hidden">
+  <div class="max-w-5xl mx-auto px-4 md:px-6 py-5">
+    <div class="relative overflow-hidden rounded-2xl shadow-xl h-44 md:h-52">
+      <div id="promo-bg" class="absolute inset-0 bg-gradient-to-br from-navy-brand to-deep-rose bg-cover bg-center"></div>
+      <div class="absolute inset-0 bg-gradient-to-r from-black/65 via-black/30 to-transparent"></div>
+      <div class="relative z-10 h-full flex flex-col justify-between p-6 md:p-8">
+        <p class="text-white/55 text-[9px] uppercase tracking-[0.3em] font-bold">Destaque</p>
+        <div>
+          <h3 id="promo-title" class="font-black text-lg md:text-2xl text-white uppercase tracking-tight leading-tight mb-4 max-w-xs md:max-w-sm"></h3>
+          <a id="promo-cta" href="#" class="inline-block bg-rose-gold text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-deep-rose transition-colors shadow-lg">Ver mais</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Procedures Section -->
+<section class="py-16 md:py-24 bg-rose-section overflow-hidden" id="procedures">
+<div class="max-w-7xl mx-auto px-4 md:px-6 text-center text-white">
+<h2 class="font-headline text-2xl md:text-4xl font-bold mb-4 uppercase tracking-tight">Nossos procedimentos</h2>
+<p class="mb-10 md:mb-16 text-white/90 text-sm md:font-medium">Vamos criar um protocolo de tratamento exclusivo, personalizado especialmente para você.</p>
+<div class="relative max-w-6xl mx-auto">
+<div class="flex overflow-x-auto snap-x snap-mandatory gap-4 md:gap-6 pt-3 pb-8 hide-scrollbar scroll-smooth" id="procedure-carousel">
+<!-- Items injected via JS -->
+</div>
+<button class="absolute -left-4 md:-left-12 top-1/2 -translate-y-1/2 bg-white hover:bg-rose-light text-rose-gold p-3 rounded-full shadow-xl transition-all z-10 hidden md:block" onclick="document.getElementById('procedure-carousel').scrollBy({left: -600, behavior: 'smooth'})">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="absolute -right-4 md:-right-12 top-1/2 -translate-y-1/2 bg-white hover:bg-rose-light text-rose-gold p-3 rounded-full shadow-xl transition-all z-10 hidden md:block" onclick="document.getElementById('procedure-carousel').scrollBy({left: 600, behavior: 'smooth'})">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+<div class="mt-8 md:mt-12">
+<a class="inline-block bg-white text-rose-gold px-8 md:px-10 py-3.5 md:py-4 rounded-md font-bold text-xs md:text-sm uppercase tracking-widest hover:bg-rose-light hover:text-white transition-all shadow-lg" href="agendamento.html">Agende uma avaliação</a>
+</div>
+</div>
+</section>
+
+<!-- Features Row — scroll lateral compacto -->
+<section class="py-10 md:py-14 bg-stone-neutral overflow-hidden">
+<div class="max-w-7xl mx-auto px-4 md:px-6">
+<div class="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 hide-scrollbar scroll-smooth md:justify-center md:overflow-x-visible md:snap-none">
+<div class="flex-none snap-center w-56 sm:w-64 bg-deep-rose p-5 text-white rounded-xl shadow-xl">
+<span class="material-symbols-outlined text-rose-light text-2xl mb-3 block">location_on</span>
+<h3 class="font-headline font-bold text-sm mb-1 uppercase tracking-wide">Localização</h3>
+<p class="text-white/70 text-xs leading-relaxed">Fácil acesso por vias principais com infraestrutura completa.</p>
+</div>
+<div class="flex-none snap-center w-56 sm:w-64 bg-deep-rose p-5 text-white rounded-xl shadow-xl">
+<span class="material-symbols-outlined text-rose-light text-2xl mb-3 block">person</span>
+<h3 class="font-headline font-bold text-sm mb-1 uppercase tracking-wide">Equipe qualificada</h3>
+<p class="text-white/70 text-xs leading-relaxed">Profissionais experientes e altamente treinados.</p>
+</div>
+<div class="flex-none snap-center w-56 sm:w-64 bg-deep-rose p-5 text-white rounded-xl shadow-xl">
+<span class="material-symbols-outlined text-rose-light text-2xl mb-3 block">sentiment_satisfied</span>
+<h3 class="font-headline font-bold text-sm mb-1 uppercase tracking-wide">Ambiente acolhedor</h3>
+<p class="text-white/70 text-xs leading-relaxed">Projetado para conforto e relaxamento total.</p>
+</div>
+<div class="flex-none snap-center w-56 sm:w-64 bg-deep-rose p-5 text-white rounded-xl shadow-xl">
+<span class="material-symbols-outlined text-rose-light text-2xl mb-3 block">workspace_premium</span>
+<h3 class="font-headline font-bold text-sm mb-1 uppercase tracking-wide">9.000 procedimentos</h3>
+<p class="text-white/70 text-xs leading-relaxed">Mais de 9 mil procedimentos no Brasil e exterior.</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- About Section -->
+<section class="py-12 md:py-20 bg-stone-neutral relative overflow-hidden" id="about">
+<div class="max-w-7xl mx-auto px-4 md:px-6 relative flex flex-col lg:flex-row items-center gap-12 lg:gap-0">
+<div class="w-full lg:w-3/5 relative mb-12 lg:mb-0">
+<div class="absolute -top-10 -left-10 w-48 md:w-64 h-48 md:h-64 bg-rose-light/40 rounded-full blur-3xl"></div>
+<div class="relative z-10 border-[10px] md:border-[20px] border-white shadow-2xl overflow-hidden transform md:-rotate-2">
+<img alt="Dra. Laura Flores" class="w-full object-cover" src="assets/doctor.png"/>
+</div>
+<div class="absolute -bottom-6 md:-bottom-12 -right-4 md:-right-6 lg:-right-12 z-20 bg-deep-rose text-white p-4 md:p-8 max-w-[200px] md:max-w-xs shadow-2xl transform rotate-3">
+<p class="text-[10px] md:text-xs uppercase tracking-[0.3em] font-bold mb-1 md:mb-2">Fundadora</p>
+<h3 class="text-lg md:text-2xl font-black">Instituto Bioflores</h3>
+</div>
+</div>
+<div class="w-full lg:w-2/5 lg:-ml-12 relative z-30">
+<div class="bg-white/90 backdrop-blur-sm p-8 md:p-12 lg:p-20 shadow-xl border-t-8 border-rose-gold">
+<h2 class="font-headline font-black text-warm-gray mb-6 md:mb-10 uppercase tracking-tighter leading-none text-2xl md:text-3xl">Quem é <br/><span style="color:#b76e79">DRA. Laura Flores?</span></h2>
+<div class="space-y-4 md:space-y-6 text-warm-gray/80 text-sm md:text-base leading-relaxed font-medium">
+<p>Formada em Biomedicina, a Dra. Laura Flores é especialista no estudo e na aplicação da Ozonioterapia. Conciliando sua vivência como mãe e sua expertise técnica, ela traz para os seus atendimentos uma abordagem cuidadosa e focada no bem-estar integral.</p>
+<p>Seu objetivo é utilizar o poder terapêutico do ozônio para estimular a recuperação natural do corpo e proporcionar mais vitalidade a quem busca seus cuidados.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Testimonials — scroll lateral compacto -->
+<section class="py-10 md:py-16 bg-stone-neutral" id="testimonials">
+<div class="max-w-7xl mx-auto px-4 md:px-6 text-center">
+<h2 class="font-headline text-2xl md:text-4xl font-bold text-warm-gray uppercase tracking-tight mb-10 md:mb-14">Depoimentos</h2>
+<div class="flex overflow-x-auto snap-x snap-mandatory gap-4 md:gap-6 pb-6 hide-scrollbar scroll-smooth md:grid md:grid-cols-3 md:overflow-x-visible md:snap-none">
+<div class="flex-none snap-center w-72 sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col justify-between text-left">
+<p class="text-warm-gray/80 mb-6 font-medium leading-relaxed italic text-sm">"Eu já era fã do trabalho que ela mostra no Instagram, fiquei mais fã ainda quando tomei a decisão de me consultar — foi a minha melhor escolha!"</p>
+<div class="flex items-center gap-3">
+<img src="https://randomuser.me/api/portraits/women/44.jpg" alt="Lucia Maria" class="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-rose-light"/>
+<div>
+<p class="font-bold text-xs uppercase">Lucia Maria</p>
+<p class="text-[10px] font-semibold text-rose-gold uppercase tracking-wider">Paciente</p>
+</div>
+</div>
+</div>
+<div class="flex-none snap-center w-72 sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col justify-between text-left">
+<p class="text-warm-gray/80 mb-6 font-medium leading-relaxed italic text-sm">"Profissional completa! Passa muita confiança em todas as explicações, além de ter uma mão levíssima! Voltarei sempre."</p>
+<div class="flex items-center gap-3">
+<img src="https://randomuser.me/api/portraits/women/65.jpg" alt="Mariana Alves" class="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-rose-light"/>
+<div>
+<p class="font-bold text-xs uppercase">Mariana Alves</p>
+<p class="text-[10px] font-semibold text-rose-gold uppercase tracking-wider">Paciente</p>
+</div>
+</div>
+</div>
+<div class="flex-none snap-center w-72 sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col justify-between text-left">
+<p class="text-warm-gray/80 mb-6 font-medium leading-relaxed italic text-sm">"Entende todas as expectativas, respeita a natureza do nosso rosto. Estou muito feliz com os resultados."</p>
+<div class="flex items-center gap-3">
+<img src="https://randomuser.me/api/portraits/women/23.jpg" alt="Luiza Santos" class="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-rose-light"/>
+<div>
+<p class="font-bold text-xs uppercase">Luiza Santos</p>
+<p class="text-[10px] font-semibold text-rose-gold uppercase tracking-wider">Paciente</p>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-10 md:mt-14">
+<a class="inline-block bg-rose-gold text-white px-8 md:px-10 py-3.5 md:py-4 rounded-md font-bold text-xs md:text-sm uppercase tracking-widest hover:shadow-xl transition-all" href="agendamento.html">Agende uma avaliação</a>
+</div>
+</div>
+</section>
+
+<!-- Contact — mapa -->
+<section class="py-16 md:py-24 bg-rose-light/20" id="contact">
+<div class="max-w-5xl mx-auto px-4 md:px-6">
+<h2 class="font-headline text-2xl md:text-4xl font-bold text-warm-gray uppercase tracking-tight mb-10 md:mb-14 text-center">Onde estamos</h2>
+<div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+<div class="w-full h-72 md:h-96">
+<iframe id="map-iframe" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Av.+Tancredo+Neves+-+Santa+Rosa,+Nova+Ol%C3%ADmpia+-+MT,+78370-000&output=embed"></iframe>
+</div>
+<div class="p-6 md:p-8 flex flex-col sm:flex-row gap-6">
+<div class="flex items-start gap-4 text-warm-gray">
+<span class="material-symbols-outlined text-rose-gold text-2xl flex-shrink-0">phone_in_talk</span>
+<div>
+<p class="font-bold text-sm md:text-base btn-whatsapp-number">(65) 9605-9906</p>
+<p class="text-xs font-medium opacity-70">Atendimento via WhatsApp</p>
+</div>
+</div>
+<div class="flex items-start gap-4 text-warm-gray">
+<span class="material-symbols-outlined text-rose-gold text-2xl flex-shrink-0">location_on</span>
+<div>
+<p class="font-bold text-sm md:text-base site-endereco">Carregando endereço...</p>
+<p class="text-xs font-medium opacity-70">Mato Grosso</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<footer class="bg-warm-gray text-white py-12 border-t border-rose-gold/10 overflow-hidden">
+<div class="max-w-7xl mx-auto px-4 md:px-6">
+<div class="flex flex-col md:flex-row justify-between items-center gap-8 text-center md:text-left">
+<div class="flex items-center gap-2">
+<a class="flex items-center" href="#">
+<img alt="Laura Flores Logo" class="h-10 md:h-12 w-auto object-contain grayscale brightness-200 contrast-100" src="assets/logo.png" style="max-width: 150px;"/>
+<span class="font-headline font-bold text-base md:text-lg text-white tracking-tight whitespace-nowrap">
+<div class="flex flex-col leading-tight -space-y-1 ml-3 text-white">
+<span class="font-light text-[10px] md:text-sm uppercase tracking-[0.2em]">Instituto</span>
+<span class="font-bold text-base md:text-xl uppercase tracking-tighter">Bioflores</span>
+</div>
+</span>
+</a>
+</div>
+<div class="flex flex-wrap justify-center gap-6 lg:gap-8 text-[10px] md:text-xs font-bold uppercase tracking-widest text-white/60">
+<a class="hover:text-rose-gold transition-colors" href="#">Privacidade</a>
+<a class="hover:text-rose-gold transition-colors" href="#">Termos</a>
+</div>
+<div class="flex flex-col items-center gap-1">
+<p class="text-[10px] md:text-xs font-medium uppercase tracking-widest text-white/40">© 2024 Dra. Laura Flores. Todos os direitos reservados.</p>
+<a href="admin.html" class="text-[9px] text-white/15 hover:text-white/40 transition-colors uppercase tracking-widest">Área restrita</a>
+</div>
+</div>
+</div>
+</footer>
+
+<script type="module">
+    import { initializeApp }                          from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getFirestore, doc, getDoc }              from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getAuth, onAuthStateChanged }            from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+    const fbApp = initializeApp({
+        apiKey:            "AIzaSyAcZx6vU7bvWx3hzclQ98PfdqulqiQSvX8",
+        authDomain:        "lauraflores-10360.firebaseapp.com",
+        projectId:         "lauraflores-10360",
+        storageBucket:     "lauraflores-10360.firebasestorage.app",
+        messagingSenderId: "1043899124552",
+        appId:             "1:1043899124552:web:afcc0a6ee44cf4edc2017d"
+    });
+    const db = getFirestore(fbApp);
+
+    const DEFAULT_PROCEDURES = [
+        { titulo: "OZONIOTERAPIA",   slug: "ozonioterapia",   imagem: "assets/treatment.png", descricao: "A <b>ozonioterapia</b> é um tratamento seguro, natural e minimamente invasivo que utiliza uma mistura precisa de oxigênio e ozônio medicinal. Essa técnica age de dentro para fora, estimulando a capacidade do seu próprio corpo de se curar, desinflamar e se regenerar." },
+        { titulo: "BIOESTIMULADORES",slug: "bioestimuladores", imagem: "assets/treatment.png", descricao: "Os <b>bioestimuladores de colágeno</b> são substâncias aplicadas para estimular a produção natural de novas fibras de colágeno. O resultado é uma pele mais firme, com menos flacidez e um aspecto rejuvenescido e saudável." },
+        { titulo: "HARMONIZAÇÃO",    slug: "harmonizacao",    imagem: "assets/treatment.png", descricao: "A <b>harmonização facial</b> busca o equilíbrio estético e funcional da face. Através de um conjunto de procedimentos minimamente invasivos, realçamos sua beleza natural e suavizamos marcas de expressão, respeitando sua individualidade." }
+    ];
+
+    async function loadProcedures() {
+        try {
+            const snap = await getDoc(doc(db, 'content', 'procedures'));
+            return snap.exists() ? (snap.data().items || DEFAULT_PROCEDURES) : DEFAULT_PROCEDURES;
+        } catch { return DEFAULT_PROCEDURES; }
+    }
+
+    function injectProcedures(procedimentos) {
+        const container = document.getElementById('procedure-carousel');
+        if (!container) return;
+        container.innerHTML = '';
+        procedimentos.forEach(p => {
+            const el = document.createElement('div');
+            el.className = 'flex-none w-full md:w-[850px] snap-center proc-anim-item';
+            el.innerHTML = `
+                <div class="bg-white rounded-xl overflow-hidden flex flex-col md:flex-row items-stretch shadow-2xl text-left h-full">
+                    <div class="md:w-1/2 h-48 sm:h-64 md:h-auto overflow-hidden">
+                        <img alt="${p.titulo}" class="w-full h-full object-cover" src="${p.imagem}"/>
+                    </div>
+                    <div class="md:w-1/2 p-6 md:p-12 flex flex-col justify-center text-warm-gray">
+                        <h3 class="font-headline text-lg md:text-2xl font-bold mb-4 md:mb-6 text-rose-gold uppercase tracking-wide">${p.titulo}</h3>
+                        <p class="text-sm md:text-base text-warm-gray/80 leading-relaxed font-medium">${p.descricao}</p>
+                    </div>
+                </div>`;
+            container.appendChild(el);
+        });
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('proc-card-animate');
+                    obs.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.15 });
+        container.querySelectorAll('.proc-anim-item').forEach(el => obs.observe(el));
+    }
+
+    async function loadPromoCard() {
+        try {
+            const snap = await getDoc(doc(db, 'content', 'promo_card'));
+            if (!snap.exists()) return;
+            const p = snap.data();
+            if (!p.active || !p.title) return;
+            document.getElementById('promo-title').textContent = p.title;
+            document.getElementById('promo-cta').href = p.link || p.ctaLink || 'agendamento.html';
+            if (p.imageUrl) {
+                const bg = document.getElementById('promo-bg');
+                bg.style.backgroundImage = `url('${p.imageUrl}')`;
+                bg.style.backgroundSize = 'cover';
+                bg.style.backgroundPosition = 'center';
+            }
+            document.getElementById('promo-section').classList.remove('hidden');
+        } catch {}
+    }
+
+    async function initApp() {
+        // Load procedures from Firebase (with fallback)
+        const procedimentos = await loadProcedures();
+        injectProcedures(procedimentos);
+        loadPromoCard();
+
+        // Load contact data from dados.json
+        try {
+            const response = await fetch('dados.json');
+            const data = await response.json();
+            const whatsapp = data.whatsapp;
+            const endereco = data.localizacao_endereco;
+            const waLink   = `https://wa.me/${whatsapp}`;
+
+            document.querySelectorAll('.btn-whatsapp').forEach(btn => {
+                btn.href = waLink; btn.target = "_blank";
+            });
+            const drawerWa = document.getElementById('drawer-wa');
+            if (drawerWa) { drawerWa.href = waLink; }
+            const headerWa = document.getElementById('header-wa');
+            if (headerWa) { headerWa.href = waLink; }
+            document.querySelectorAll('.site-endereco').forEach(el => {
+                el.textContent = endereco;
+            });
+            const mapIframe = document.getElementById('map-iframe');
+            if (mapIframe) mapIframe.src = `https://www.google.com/maps?q=${encodeURIComponent(endereco)}&output=embed`;
+
+            const phoneDisplay = whatsapp.length === 13
+                ? `(${whatsapp.substring(2,4)}) ${whatsapp.substring(4,9)}-${whatsapp.substring(9)}`
+                : `(${whatsapp.substring(2,4)}) ${whatsapp.substring(4,8)}-${whatsapp.substring(8)}`;
+            document.querySelectorAll('.btn-whatsapp-number').forEach(el => { el.textContent = phoneDisplay; });
+        } catch (e) { console.error("Erro ao carregar dados.json:", e); }
+    }
+
+    initApp();
+
+    // Drawer auth section — dinâmico por estado de login
+    const auth = getAuth(fbApp);
+    const WA_SVG = `<svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>`;
+    const BTN = (href, icon, label, style) =>
+      `<a href="${href}" class="flex items-center justify-center gap-2 ${style} py-3.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors">${icon}${label}</a>`;
+
+    const BTN_SM = (href, icon, label) =>
+      `<a href="${href}" class="flex items-center gap-1.5 border border-rose-light/50 text-warm-gray hover:border-rose-gold hover:text-rose-gold px-3 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-colors">${icon}${label}</a>`;
+
+    onAuthStateChanged(auth, async user => {
+      const drawerSection  = document.getElementById('drawer-auth-section');
+      const desktopSection = document.getElementById('desktop-auth-section');
+
+      if (!user) {
+        const loginBtn = BTN('conta.html',
+          '<span class="material-symbols-outlined text-base">person_add</span>',
+          'Criar conta',
+          'border border-rose-light/50 text-warm-gray hover:border-rose-gold hover:text-rose-gold');
+        if (drawerSection)  drawerSection.innerHTML  = loginBtn;
+        if (desktopSection) desktopSection.innerHTML = BTN_SM('conta.html',
+          '<span class="material-symbols-outlined text-sm">person_add</span>', 'Entrar');
+        return;
+      }
+      // Verifica se é admin
+      let isAdmin = false;
+      try {
+        const snap = await getDoc(doc(db, 'content', 'admins'));
+        if (snap.exists()) isAdmin = (snap.data().emails || []).includes(user.email);
+      } catch {}
+
+      if (isAdmin) {
+        if (drawerSection) drawerSection.innerHTML =
+          BTN('perfil.html',
+            '<span class="material-symbols-outlined text-base">person</span>',
+            'Meu perfil',
+            'border border-rose-light/50 text-warm-gray hover:border-rose-gold hover:text-rose-gold') +
+          BTN('admin.html',
+            '<span class="material-symbols-outlined text-base">manage_accounts</span>',
+            'Área restrita',
+            'border border-rose-light/50 text-warm-gray hover:border-rose-gold hover:text-rose-gold');
+        if (desktopSection) desktopSection.innerHTML =
+          BTN_SM('perfil.html', '<span class="material-symbols-outlined text-sm">person</span>', 'Meu perfil') +
+          BTN_SM('admin.html', '<span class="material-symbols-outlined text-sm">manage_accounts</span>', 'Área restrita');
+      } else {
+        if (drawerSection) drawerSection.innerHTML = BTN('perfil.html',
+          '<span class="material-symbols-outlined text-base">person</span>',
+          'Meu perfil',
+          'border border-rose-light/50 text-warm-gray hover:border-rose-gold hover:text-rose-gold');
+        if (desktopSection) desktopSection.innerHTML =
+          BTN_SM('perfil.html', '<span class="material-symbols-outlined text-sm">person</span>', 'Meu perfil');
+      }
+    });
+</script>
+<script>document.addEventListener('contextmenu',e=>e.preventDefault());</script>
+</body></html>

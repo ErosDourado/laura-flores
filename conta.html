@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Conta | Bioflores</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="icon" type="image/png" href="assets/icon-192.png"/>
+<link rel="apple-touch-icon" href="assets/icon-192.png"/>
+<meta name="theme-color" content="#B76E79"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="Bioflores"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  theme: { extend: {
+    colors: { "rose-gold":"#B76E79","rose-light":"#E5C1CD","deep-rose":"#8E505A","stone-neutral":"#F5F2ED","warm-gray":"#4A4546","navy-brand":"#1D2D44" },
+    fontFamily: { body:["Montserrat","sans-serif"] }
+  }}
+}
+</script>
+<style>
+  body { font-family:'Montserrat',sans-serif; }
+  .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+  .tab-active { border-bottom:2px solid #B76E79; color:#B76E79; font-weight:700; }
+  body { -webkit-user-select:none; user-select:none; }
+  input, textarea, select { -webkit-user-select:text; user-select:text; }
+</style>
+</head>
+<body class="bg-gradient-to-br from-stone-neutral to-rose-light/20 min-h-screen flex flex-col font-body text-warm-gray">
+
+<header class="bg-white/80 backdrop-blur-sm border-b border-rose-light/30 px-4 py-4 flex items-center justify-between">
+  <a href="index.html" class="flex items-center gap-3">
+    <img src="assets/logo.png" alt="Logo" class="h-10 object-contain"/>
+    <div class="leading-tight">
+      <p class="text-[9px] uppercase tracking-[0.2em] text-warm-gray/40 font-semibold">Instituto</p>
+      <p class="font-black text-sm text-navy-brand uppercase tracking-tight">Bioflores</p>
+    </div>
+  </a>
+  <a href="index.html" class="flex items-center gap-1.5 text-xs font-bold text-warm-gray/50 hover:text-rose-gold transition-colors">
+    <span class="material-symbols-outlined text-base">arrow_back</span>Voltar
+  </a>
+</header>
+
+<main class="flex-1 flex items-center justify-center px-4 py-12">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+
+    <!-- Tabs -->
+    <div class="flex border-b border-rose-light/30">
+      <button onclick="showTab('login')" id="tab-login" class="tab-btn tab-active flex-1 py-4 text-xs uppercase tracking-widest cursor-pointer transition-all">Entrar</button>
+      <button onclick="showTab('signup')" id="tab-signup" class="tab-btn flex-1 py-4 text-xs uppercase tracking-widest text-warm-gray/50 hover:text-rose-gold cursor-pointer transition-all">Criar conta</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="panel-login" class="p-8 space-y-4">
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">E-mail</label>
+        <input id="l-email" type="email" autocomplete="email" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="seu@email.com"/>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Senha</label>
+        <input id="l-pass" type="password" autocomplete="current-password" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="••••••••"/>
+      </div>
+      <p id="l-error" class="text-red-500 text-xs hidden text-center"></p>
+      <button onclick="doLogin()" id="l-btn" class="w-full bg-rose-gold text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">Entrar</button>
+      <p class="text-center text-xs text-warm-gray/40">Não tem conta? <button onclick="showTab('signup')" class="text-rose-gold font-bold hover:underline cursor-pointer">Criar agora</button></p>
+    </div>
+
+    <!-- SIGNUP -->
+    <div id="panel-signup" class="p-8 space-y-4 hidden">
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Nome completo *</label>
+        <input id="s-name" type="text" autocomplete="name" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="Seu nome"/>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Celular *</label>
+        <input id="s-phone" type="tel" autocomplete="tel" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="(65) 9 9999-9999"/>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">E-mail *</label>
+        <input id="s-email" type="email" autocomplete="email" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="seu@email.com"/>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Senha *</label>
+        <input id="s-pass" type="password" autocomplete="new-password" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="mínimo 6 caracteres"/>
+      </div>
+      <p id="s-error" class="text-red-500 text-xs hidden text-center"></p>
+      <button onclick="doSignup()" id="s-btn" class="w-full bg-rose-gold text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">Criar conta</button>
+      <p class="text-center text-xs text-warm-gray/40">Já tem conta? <button onclick="showTab('login')" class="text-rose-gold font-bold hover:underline cursor-pointer">Entrar</button></p>
+    </div>
+
+  </div>
+</main>
+
+<script type="module">
+import { initializeApp }      from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged }
+                               from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getFirestore, doc, setDoc, serverTimestamp }
+                               from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+const app  = initializeApp({
+  apiKey:"AIzaSyAcZx6vU7bvWx3hzclQ98PfdqulqiQSvX8",authDomain:"lauraflores-10360.firebaseapp.com",
+  projectId:"lauraflores-10360",storageBucket:"lauraflores-10360.firebasestorage.app",
+  messagingSenderId:"1043899124552",appId:"1:1043899124552:web:afcc0a6ee44cf4edc2017d"
+});
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+let isAuthAction = false;
+// Se já logado, redireciona
+onAuthStateChanged(auth, user => { if (user && !isAuthAction) window.location.href = 'index.html'; });
+
+window.showTab = tab => {
+  ['login','signup'].forEach(t => {
+    document.getElementById(`panel-${t}`).classList.toggle('hidden', t !== tab);
+    const btn = document.getElementById(`tab-${t}`);
+    btn.classList.toggle('tab-active', t === tab);
+    btn.classList.toggle('text-warm-gray/50', t !== tab);
+  });
+};
+
+window.doLogin = async () => {
+  const email = document.getElementById('l-email').value.trim();
+  const pass  = document.getElementById('l-pass').value;
+  const err   = document.getElementById('l-error');
+  const btn   = document.getElementById('l-btn');
+  err.classList.add('hidden'); btn.textContent = 'Entrando...'; btn.disabled = true;
+  try {
+    isAuthAction = true;
+    await signInWithEmailAndPassword(auth, email, pass);
+    window.location.href = 'index.html';
+  } catch {
+    err.textContent = 'E-mail ou senha incorretos.'; err.classList.remove('hidden');
+    btn.textContent = 'Entrar'; btn.disabled = false;
+    isAuthAction = false;
+  }
+};
+
+window.doSignup = async () => {
+  const name  = document.getElementById('s-name').value.trim();
+  const phone = document.getElementById('s-phone').value.trim();
+  const email = document.getElementById('s-email').value.trim();
+  const pass  = document.getElementById('s-pass').value;
+  const err   = document.getElementById('s-error');
+  const btn   = document.getElementById('s-btn');
+  err.classList.add('hidden');
+  if (!name || !phone || !email || !pass) { err.textContent = 'Preencha todos os campos.'; err.classList.remove('hidden'); return; }
+  if (pass.length < 6) { err.textContent = 'A senha deve ter no mínimo 6 caracteres.'; err.classList.remove('hidden'); return; }
+  btn.textContent = 'Criando conta...'; btn.disabled = true;
+  try {
+    isAuthAction = true;
+    // 1. Cria conta no Firebase Auth
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    // 2. Salva perfil no Firestore usando setDoc e uid
+    await setDoc(doc(db, 'users', cred.user.uid), { name, phone, email, createdAt: serverTimestamp() });
+    // 3. Redireciona para Home
+    window.location.href = 'index.html';
+  } catch (e) {
+    const msgs = {
+      'auth/email-already-in-use':  'Este e-mail já está cadastrado.',
+      'auth/invalid-email':         'E-mail inválido.',
+      'auth/weak-password':         'Senha muito fraca. Use ao menos 6 caracteres.',
+      'auth/operation-not-allowed': 'Login por e-mail não está ativado no Firebase Console.',
+      'auth/network-request-failed':'Sem conexão. Verifique sua internet.',
+    };
+    err.textContent = msgs[e.code] || `Erro ao criar conta (${e.code}).`;
+    err.classList.remove('hidden');
+    btn.textContent = 'Criar conta'; btn.disabled = false;
+    isAuthAction = false;
+  }
+};
+
+document.getElementById('l-pass').addEventListener('keydown', e => { if(e.key==='Enter') window.doLogin(); });
+document.getElementById('s-pass').addEventListener('keydown', e => { if(e.key==='Enter') window.doSignup(); });
+document.addEventListener('contextmenu',e=>e.preventDefault());
+</script>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Meu Perfil | Bioflores</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="icon" type="image/png" href="assets/icon-192.png"/>
+<link rel="apple-touch-icon" href="assets/icon-192.png"/>
+<meta name="theme-color" content="#B76E79"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="Bioflores"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  theme: { extend: {
+    colors: { "rose-gold":"#B76E79","rose-light":"#E5C1CD","deep-rose":"#8E505A","stone-neutral":"#F5F2ED","warm-gray":"#4A4546","navy-brand":"#1D2D44" },
+    fontFamily: { body:["Montserrat","sans-serif"] }
+  }}
+}
+</script>
+<style>
+  body { font-family:'Montserrat',sans-serif; }
+  .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+  .status-pending  { background:#FEF3C7; color:#92400E; }
+  .status-confirmed{ background:#D1FAE5; color:#065F46; }
+  .status-cancelled{ background:#FEE2E2; color:#991B1B; }
+  body { -webkit-user-select:none; user-select:none; }
+  input, textarea, select { -webkit-user-select:text; user-select:text; }
+</style>
+</head>
+<body class="bg-stone-neutral min-h-screen flex flex-col font-body text-warm-gray">
+
+<header class="bg-white border-b border-rose-light/30 px-4 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+  <a href="index.html" class="flex items-center gap-3">
+    <img src="assets/logo.png" alt="Logo" class="h-10 object-contain"/>
+    <div class="leading-tight">
+      <p class="text-[9px] uppercase tracking-[0.2em] text-warm-gray/40 font-semibold">Instituto</p>
+      <p class="font-black text-sm text-navy-brand uppercase tracking-tight">Bioflores</p>
+    </div>
+  </a>
+  <a href="index.html" class="flex items-center gap-1.5 text-xs font-bold text-warm-gray/50 hover:text-rose-gold transition-colors">
+    <span class="material-symbols-outlined text-base">home</span>Home
+  </a>
+</header>
+
+<!-- Loading state -->
+<div id="loading" class="flex-1 flex items-center justify-center">
+  <div class="text-center text-warm-gray/30">
+    <span class="material-symbols-outlined text-4xl mb-2 block">hourglass_empty</span>
+    <p class="text-xs uppercase tracking-widest">Carregando...</p>
+  </div>
+</div>
+
+<!-- Not logged in -->
+<div id="not-auth" class="hidden flex-1 flex items-center justify-center px-4">
+  <div class="text-center max-w-sm">
+    <span class="material-symbols-outlined text-5xl text-warm-gray/20 mb-4 block">lock</span>
+    <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight mb-2">Acesso restrito</h2>
+    <p class="text-sm text-warm-gray/60 mb-6">Você precisa estar logado para ver seu perfil.</p>
+    <a href="conta.html" class="inline-block bg-rose-gold text-white px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-deep-rose transition-colors">Entrar / Criar conta</a>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" class="hidden flex-1">
+  <!-- Profile card -->
+  <div class="bg-rose-gold">
+    <div class="max-w-2xl mx-auto px-4 py-8">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-white text-3xl">person</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-white/70 text-[10px] uppercase tracking-widest font-semibold mb-0.5">Meu perfil</p>
+          <h1 id="user-name" class="text-white font-black text-base tracking-tight truncate">—</h1>
+          <p id="user-phone" class="text-white/80 text-sm font-medium mt-0.5">—</p>
+        </div>
+        <button onclick="toggleEdit()" class="flex-shrink-0 bg-white/20 hover:bg-white/30 text-white p-2 rounded-xl transition-colors cursor-pointer">
+          <span class="material-symbols-outlined text-base">edit</span>
+        </button>
+      </div>
+
+      <!-- Inline edit form (hidden by default) -->
+      <div id="edit-form" class="hidden mt-5 bg-white/10 rounded-2xl p-4 space-y-3">
+        <p class="text-white/70 text-[10px] uppercase tracking-widest font-bold">Editar dados</p>
+        <input id="edit-name" type="text" placeholder="Seu nome completo" class="w-full bg-white/20 text-white placeholder-white/50 border border-white/30 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white font-medium"/>
+        <input id="edit-phone" type="tel" placeholder="Celular (ex: 65 99999-9999)" class="w-full bg-white/20 text-white placeholder-white/50 border border-white/30 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white font-medium"/>
+        <div class="flex gap-2">
+          <button onclick="toggleEdit()" class="flex-1 bg-white/10 text-white py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-white/20 transition-colors cursor-pointer">Cancelar</button>
+          <button onclick="saveProfile()" id="save-btn" class="flex-1 bg-white text-rose-gold py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-rose-light transition-colors cursor-pointer">Salvar</button>
+        </div>
+        <p id="edit-msg" class="text-white/70 text-xs text-center hidden"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-2xl mx-auto px-4 py-8">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-black text-base text-navy-brand uppercase tracking-tight">Meus agendamentos</h2>
+      <a href="agendamento.html" class="flex items-center gap-1.5 bg-rose-gold text-white px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">
+        <span class="material-symbols-outlined text-base">add</span>Novo
+      </a>
+    </div>
+    <div id="appts-list" class="space-y-3">
+      <div class="text-center py-12 text-warm-gray/30 text-sm">Carregando agendamentos...</div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, onAuthStateChanged }
+                            from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp }
+                            from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+const app  = initializeApp({
+  apiKey:"AIzaSyAcZx6vU7bvWx3hzclQ98PfdqulqiQSvX8",authDomain:"lauraflores-10360.firebaseapp.com",
+  projectId:"lauraflores-10360",storageBucket:"lauraflores-10360.firebasestorage.app",
+  messagingSenderId:"1043899124552",appId:"1:1043899124552:web:afcc0a6ee44cf4edc2017d"
+});
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+let currentUid = null;
+
+onAuthStateChanged(auth, async user => {
+  document.getElementById('loading').classList.add('hidden');
+  if (!user) {
+    document.getElementById('not-auth').classList.remove('hidden');
+    document.getElementById('not-auth').classList.add('flex');
+    return;
+  }
+  currentUid = user.uid;
+  document.getElementById('dashboard').classList.remove('hidden');
+
+  // Tenta carregar perfil do Firestore
+  try {
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    let d = {};
+    if (snap.exists()) d = snap.data();
+    
+    const displayName = d.name || user.displayName || 'Complete seu perfil';
+    const displayPhone = d.phone || user.phoneNumber || '';
+
+    document.getElementById('user-name').textContent  = displayName;
+    document.getElementById('user-phone').textContent = displayPhone;
+    document.getElementById('edit-name').value  = d.name || user.displayName || '';
+    document.getElementById('edit-phone').value = displayPhone;
+
+    if (!d.name) {
+      document.getElementById('edit-form').classList.remove('hidden');
+    }
+  } catch (e) {
+    console.warn('Perfil Firestore:', e.code);
+    document.getElementById('user-name').textContent  = user.displayName || 'Complete seu perfil';
+    document.getElementById('user-phone').textContent = user.phoneNumber || '';
+    document.getElementById('edit-name').value = user.displayName || '';
+    document.getElementById('edit-phone').value = user.phoneNumber || '';
+    document.getElementById('edit-form').classList.remove('hidden');
+  }
+
+  loadAppointments(user.uid);
+});
+
+window.toggleEdit = () => {
+  document.getElementById('edit-form').classList.toggle('hidden');
+};
+
+window.saveProfile = async () => {
+  const name  = document.getElementById('edit-name').value.trim();
+  const phone = document.getElementById('edit-phone').value.trim();
+  const msg   = document.getElementById('edit-msg');
+  const btn   = document.getElementById('save-btn');
+  if (!name) { msg.textContent = 'Informe seu nome.'; msg.classList.remove('hidden'); return; }
+  btn.textContent = 'Salvando...'; btn.disabled = true;
+  try {
+    await setDoc(doc(db, 'users', currentUid), { name, phone, updatedAt: serverTimestamp() }, { merge: true });
+    document.getElementById('user-name').textContent  = name;
+    document.getElementById('user-phone').textContent = phone;
+    document.getElementById('edit-form').classList.add('hidden');
+    msg.classList.add('hidden');
+  } catch (e) {
+    msg.textContent = 'Erro ao salvar. Verifique as regras do Firestore.';
+    msg.classList.remove('hidden');
+    console.warn('saveProfile:', e.code);
+  }
+  btn.textContent = 'Salvar'; btn.disabled = false;
+};
+
+async function loadAppointments(uid) {
+  const list = document.getElementById('appts-list');
+  try {
+    // Sem orderBy para evitar necessidade de índice composto
+    const snap = await getDocs(query(
+      collection(db, 'appointments'),
+      where('userId', '==', uid)
+    ));
+    const appts = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+    if (!appts.length) {
+      list.innerHTML = `
+        <div class="text-center py-12">
+          <span class="material-symbols-outlined text-4xl text-warm-gray/20 mb-3 block">calendar_today</span>
+          <p class="text-sm text-warm-gray/40 mb-4">Você ainda não tem agendamentos.</p>
+          <a href="agendamento.html" class="inline-block bg-rose-gold text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-deep-rose transition-colors">Agendar agora</a>
+        </div>`;
+      return;
+    }
+
+    const labels = { pending:'Pendente', confirmed:'Confirmado', cancelled:'Cancelado' };
+    const cls    = { pending:'status-pending', confirmed:'status-confirmed', cancelled:'status-cancelled' };
+
+    list.innerHTML = appts.map(a => `
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h3 class="font-bold text-sm text-navy-brand">${a.serviceName || '—'}</h3>
+            <p class="text-xs text-warm-gray/50 mt-0.5">${a.date || '—'}${a.time ? ' · ' + a.time : ''}</p>
+          </div>
+          <span class="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full flex-shrink-0 ${cls[a.status] || 'bg-gray-100 text-gray-500'}">${labels[a.status] || a.status}</span>
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    console.warn('Agendamentos Firestore:', e.code);
+    list.innerHTML = `
+      <div class="text-center py-12">
+        <span class="material-symbols-outlined text-4xl text-warm-gray/20 mb-3 block">calendar_today</span>
+        <p class="text-sm text-warm-gray/40 mb-4">Você ainda não tem agendamentos.</p>
+        <a href="agendamento.html" class="inline-block bg-rose-gold text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-deep-rose transition-colors">Agendar agora</a>
+      </div>`;
+  }
+}
+document.addEventListener('contextmenu',e=>e.preventDefault());
+</script>
+</body>
+</html>
