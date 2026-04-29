@@ -259,7 +259,7 @@ tailwind.config = {
         </div>
 
         <!-- Card do cliente -->
-        <div class="bg-rose-gold rounded-2xl p-5 mb-6 flex items-center gap-4">
+        <div class="bg-rose-gold rounded-2xl p-5 mb-6 flex items-center gap-4 relative">
           <div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
             <span class="material-symbols-outlined text-white text-2xl">person</span>
           </div>
@@ -271,9 +271,23 @@ tailwind.config = {
               <p id="client-email-display" class="text-white/55 text-xs"></p>
             </div>
           </div>
+          <button onclick="openAdminBookingModal()" class="flex-shrink-0 bg-white text-rose-gold font-bold px-4 py-2 rounded-xl text-[11px] uppercase tracking-widest hover:bg-white/90 transition-colors shadow-sm hidden sm:block">
+            Agendar Horário
+          </button>
+          <button onclick="openAdminBookingModal()" class="flex-shrink-0 bg-white text-rose-gold font-bold p-2.5 rounded-xl hover:bg-white/90 transition-colors shadow-sm sm:hidden" title="Agendar Horário">
+            <span class="material-symbols-outlined text-xl">calendar_month</span>
+          </button>
         </div>
 
-        <p class="text-[10px] font-black uppercase tracking-widest text-warm-gray/35 mb-4">Ficha de Anamnese</p>
+        <div onclick="toggleAnamnese()" class="flex items-center justify-between cursor-pointer bg-white p-4 rounded-2xl shadow-sm border border-rose-light/20 hover:border-rose-gold/50 transition-colors mb-4">
+          <div>
+            <h3 class="font-black text-navy-brand uppercase tracking-tight text-sm">Ficha de Anamnese</h3>
+            <p class="text-[10px] text-warm-gray/50 uppercase tracking-widest mt-0.5">Clique para expandir ou recolher os dados completos</p>
+          </div>
+          <span id="anamnese-chevron" class="material-symbols-outlined text-warm-gray/40 transition-transform">expand_more</span>
+        </div>
+
+        <div id="anamnese-content" class="hidden">
 
         <!-- 01 IDENTIFICAÇÃO -->
         <div class="bg-white rounded-2xl p-6 shadow-sm border border-rose-light/20 mb-4">
@@ -671,6 +685,7 @@ tailwind.config = {
             Salvar ficha
           </button>
         </div>
+        </div> <!-- Fim anamnese-content -->
       </div>
     </div>
 
@@ -793,6 +808,40 @@ tailwind.config = {
       <button onclick="confirmCrop()" id="crop-confirm-btn" class="bg-rose-gold text-white px-7 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">
         Confirmar
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AGENDAMENTO ADMIN -->
+<div id="admin-booking-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between p-5 border-b border-rose-light/30 bg-stone-neutral/30">
+      <div>
+        <h3 class="font-black uppercase tracking-tight text-navy-brand text-sm">Agendar Horário</h3>
+        <p id="abm-client-name" class="text-[10px] text-warm-gray/50 uppercase tracking-widest mt-0.5 truncate"></p>
+      </div>
+      <button onclick="closeAdminBookingModal()" class="text-warm-gray/30 hover:text-rose-gold transition-colors cursor-pointer p-1">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Serviço *</label>
+        <select id="abm-service" class="w-full border border-rose-light/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold bg-white">
+        </select>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Data *</label>
+        <input id="abm-date" type="date" class="w-full border border-rose-light/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold"/>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Hora *</label>
+        <input id="abm-time" type="time" class="w-full border border-rose-light/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold"/>
+      </div>
+    </div>
+    <div class="flex gap-3 p-6 pt-0">
+      <button onclick="closeAdminBookingModal()" class="flex-1 border border-rose-light/40 text-warm-gray py-3 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-stone-neutral transition-colors cursor-pointer">Cancelar</button>
+      <button onclick="saveAdminBooking()" id="abm-btn" class="flex-1 bg-rose-gold text-white py-3 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-deep-rose transition-colors cursor-pointer">Agendar</button>
     </div>
   </div>
 </div>
@@ -1500,12 +1549,79 @@ window.openClientProfile = async idx => {
   document.getElementById('client-phone-display').textContent = u.phone || '';
   document.getElementById('client-email-display').textContent = u.email || '';
 
+  // Fechar anamnese por padrão ao abrir perfil
+  document.getElementById('anamnese-content').classList.add('hidden');
+  document.getElementById('anamnese-chevron').style.transform = 'rotate(0deg)';
+
   try {
     const snap = await getDoc(doc(db, 'anamnese', u.uid));
     if (snap.exists()) anamneseData = snap.data();
   } catch {}
 
   renderAnamneseForm();
+};
+
+window.toggleAnamnese = () => {
+  const content = document.getElementById('anamnese-content');
+  const chevron = document.getElementById('anamnese-chevron');
+  if (content.classList.contains('hidden')) {
+    content.classList.remove('hidden');
+    chevron.style.transform = 'rotate(180deg)';
+  } else {
+    content.classList.add('hidden');
+    chevron.style.transform = 'rotate(0deg)';
+  }
+};
+
+window.openAdminBookingModal = () => {
+  if (!currentClientUid) return;
+  const cName = document.getElementById('client-name-display').textContent;
+  document.getElementById('abm-client-name').textContent = cName;
+  
+  const sel = document.getElementById('abm-service');
+  sel.innerHTML = '<option value="">Selecione...</option>' + allSvcs.filter(s => s.active).map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+  
+  document.getElementById('abm-date').value = '';
+  document.getElementById('abm-time').value = '';
+  
+  document.getElementById('admin-booking-modal').classList.remove('hidden');
+};
+
+window.closeAdminBookingModal = () => document.getElementById('admin-booking-modal').classList.add('hidden');
+
+window.saveAdminBooking = async () => {
+  const svc = document.getElementById('abm-service').value;
+  const dat = document.getElementById('abm-date').value;
+  const tim = document.getElementById('abm-time').value;
+  
+  if (!svc || !dat || !tim) { showToast('Preencha todos os campos'); return; }
+  
+  const parts = dat.split('-');
+  const dateStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
+  
+  const btn = document.getElementById('abm-btn');
+  btn.textContent = 'Agendando...'; btn.disabled = true;
+  
+  try {
+    const u = clientsData.find(c => c.uid === currentClientUid) || {};
+    await addDoc(collection(db, 'appointments'), {
+      clientId: currentClientUid,
+      clientName: u.name || 'Desconhecido',
+      email: u.email || '',
+      phone: u.phone || '',
+      serviceName: svc,
+      date: dateStr,
+      time: tim,
+      status: 'confirmed',
+      createdAt: serverTimestamp()
+    });
+    showToast('Horário agendado com sucesso!');
+    closeAdminBookingModal();
+  } catch(e) {
+    showToast('Erro ao agendar.');
+    console.error(e);
+  }
+  btn.textContent = 'Agendar'; btn.disabled = false;
 };
 
 window.backToClients = () => {
