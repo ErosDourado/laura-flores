@@ -82,6 +82,9 @@ tailwind.config = {
         <button onclick="toggleEdit()" class="flex-shrink-0 bg-white/20 hover:bg-white/30 text-white p-2 rounded-xl transition-colors cursor-pointer">
           <span class="material-symbols-outlined text-base">edit</span>
         </button>
+        <button onclick="logout()" class="flex-shrink-0 bg-deep-rose/80 hover:bg-deep-rose text-white p-2 rounded-xl transition-colors cursor-pointer" title="Sair da Conta">
+          <span class="material-symbols-outlined text-base">logout</span>
+        </button>
       </div>
 
       <!-- Inline edit form (hidden by default) -->
@@ -113,7 +116,7 @@ tailwind.config = {
 
 <script type="module">
 import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth, onAuthStateChanged }
+import { getAuth, onAuthStateChanged, signOut }
                             from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp }
                             from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
@@ -173,6 +176,11 @@ onAuthStateChanged(auth, async user => {
 
 window.toggleEdit = () => {
   document.getElementById('edit-form').classList.toggle('hidden');
+};
+
+window.logout = async () => {
+  await signOut(auth);
+  window.location.href = 'index.html';
 };
 
 window.saveProfile = async () => {

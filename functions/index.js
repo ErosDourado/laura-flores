@@ -14,7 +14,7 @@ try {
 }
 
 // O e-mail da Laura vai ser guardado no firebase functions config ou hardcoded
-const CALENDAR_ID = process.env.LAURA_CALENDAR_EMAIL || 'emaildalaura@gmail.com'; 
+const CALENDAR_ID = process.env.LAURA_CALENDAR_EMAIL || 'institutobioflores@gmail.com'; 
 
 exports.syncAppointmentToCalendar = functions.firestore
   .document('appointments/{appointmentId}')
