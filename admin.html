@@ -99,6 +99,9 @@ tailwind.config = {
       <button class="tab-btn px-5 py-4 text-[10px] uppercase tracking-widest text-warm-gray/50 hover:text-rose-gold cursor-pointer" data-tab="availability" onclick="switchTab('availability')">
         <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-sm">schedule</span>Disponibilidade</span>
       </button>
+      <button class="tab-btn px-5 py-4 text-[10px] uppercase tracking-widest text-warm-gray/50 hover:text-rose-gold cursor-pointer" data-tab="messages" onclick="switchTab('messages')">
+        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-sm">chat</span>Mensagens</span>
+      </button>
     </div>
   </div>
 
@@ -775,6 +778,65 @@ tailwind.config = {
       </div>
     </div>
 
+    <!-- MENSAGENS -->
+    <div id="tab-messages" class="tab-content hidden space-y-5">
+      <div>
+        <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight">Mensagens WhatsApp</h2>
+        <p class="text-xs text-warm-gray/50 mt-1">Personalize as mensagens enviadas para cada status. Use as variáveis: <code class="bg-rose-light/20 px-1.5 py-0.5 rounded text-rose-gold">{nome}</code> <code class="bg-rose-light/20 px-1.5 py-0.5 rounded text-rose-gold">{servico}</code> <code class="bg-rose-light/20 px-1.5 py-0.5 rounded text-rose-gold">{data}</code> <code class="bg-rose-light/20 px-1.5 py-0.5 rounded text-rose-gold">{hora}</code></p>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Pendente -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full status-pending">Pendente</span>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-warm-gray/40">Confirmação de agendamento</p>
+          </div>
+          <textarea id="msg-pending" rows="3" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold resize-none" placeholder="Mensagem de confirmação..."></textarea>
+        </div>
+
+        <!-- Confirmado -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full status-confirmed">Confirmado</span>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-warm-gray/40">Lembrete / confirmação</p>
+          </div>
+          <textarea id="msg-confirmed" rows="3" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold resize-none" placeholder="Mensagem de lembrete..."></textarea>
+        </div>
+
+        <!-- Concluído -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full status-concluded">Concluído</span>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-warm-gray/40">Pós-atendimento</p>
+          </div>
+          <textarea id="msg-concluded" rows="3" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold resize-none" placeholder="Mensagem pós-atendimento..."></textarea>
+        </div>
+
+        <!-- Cancelado -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full status-cancelled">Cancelado</span>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-warm-gray/40">Aviso de cancelamento</p>
+          </div>
+          <textarea id="msg-cancelled" rows="3" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold resize-none" placeholder="Mensagem de cancelamento..."></textarea>
+        </div>
+
+        <!-- Nova vaga -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">Nova Vaga</span>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-warm-gray/40">Fila de espera</p>
+          </div>
+          <textarea id="msg-waitlist" rows="3" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold resize-none" placeholder="Mensagem para notificar vaga aberta..."></textarea>
+        </div>
+      </div>
+
+      <button onclick="saveMessages()" class="bg-rose-gold text-white px-8 py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer shadow-sm">
+        Salvar mensagens
+      </button>
+    </div>
+
   </main>
 </div>
 
@@ -1007,7 +1069,7 @@ onAuthStateChanged(auth, async user => {
     if (isAdmin) {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('dashboard').classList.remove('hidden');
-      loadAppointments(); loadServices(); loadProcedures(); loadAvailability(); loadPromoCard(); loadClients();
+      loadAppointments(); loadServices(); loadProcedures(); loadAvailability(); loadPromoCard(); loadClients(); loadMessages();
     } else {
       alert("Acesso negado. Você não possui privilégios de administrador.");
       window.location.href = 'index.html';
@@ -1150,19 +1212,28 @@ window.updateStatus = async (id, status) => {
     const a = allAppts.find(x => x.id === id);
     if (a) {
       try {
-        const snap = await getDocs(query(collection(db,'fila_espera'), where('date','==',a.date), where('time','==',a.time)));
-        if (!snap.empty) {
-          const matches = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        // Buscar TODOS da fila de espera que querem vaga anterior
+        const snap = await getDocs(collection(db,'fila_espera'));
+        const matches = snap.docs.map(d => ({id: d.id, ...d.data()}))
+          .filter(m => m.wantEarlier || m.date === a.date || m.time === a.time);
+        if (matches.length > 0) {
           const container = document.getElementById('waitlist-matches-container');
+          // Carregar template de mensagem customizado
+          let msgTemplate = `Olá {nome}, um horário de {servico} no dia {data} às {hora} acaba de liberar! Deseja confirmar?`;
+          try {
+            const msgSnap = await getDoc(doc(db,'content','messages'));
+            if (msgSnap.exists() && msgSnap.data().waitlist) msgTemplate = msgSnap.data().waitlist;
+          } catch {}
           container.innerHTML = matches.map(m => {
             const digits = (m.phone||'').replace(/\D/g,'');
             const wa = digits ? `55${digits}` : '';
-            const msg = encodeURIComponent(`Olá ${m.clientName}, o horário de ${m.date} às ${m.time} para ${m.serviceName} acaba de liberar! Deseja confirmar?`);
+            const msgText = msgTemplate.replace(/{nome}/g, m.clientName||'').replace(/{servico}/g, a.serviceName||'').replace(/{data}/g, a.date||'').replace(/{hora}/g, a.time||'');
+            const msg = encodeURIComponent(msgText);
             return `
               <div class="p-3 border border-rose-light/40 rounded-xl bg-white flex flex-col gap-2">
                 <div>
                   <p class="font-bold text-navy-brand">${m.clientName}</p>
-                  <p class="text-[11px] text-warm-gray/60">Aguardando: ${m.serviceName}</p>
+                  <p class="text-[11px] text-warm-gray/60">Quer vaga antes · ${m.phone || ''}</p>
                 </div>
                 ${wa ? `<a href="https://wa.me/${wa}?text=${msg}" target="_blank" class="flex justify-center items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition-colors cursor-pointer w-full"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>Avisar no WhatsApp</a>` : ''}
               </div>
@@ -1177,17 +1248,31 @@ window.updateStatus = async (id, status) => {
 window.delAppt = async id => { if(!confirm('Excluir?')) return; await deleteDoc(doc(db,'appointments',id)); showToast('Excluído'); };
 window.closeWaitlistModal = () => document.getElementById('waitlist-modal').classList.add('hidden');
 
-window.openWaTemplatesModal = (clientName, waPhone, serviceName, date, time, status) => {
+window.openWaTemplatesModal = async (clientName, waPhone, serviceName, date, time, status) => {
   const container = document.getElementById('wa-templates-container');
-  const baseData = {clientName, serviceName, date, time};
+  container.innerHTML = '<div class="text-center py-4 text-warm-gray/30 text-xs">Carregando...</div>';
+  document.getElementById('wa-templates-modal').classList.remove('hidden');
   
-  const templates = [
-    { name: 'Confirmação', msg: `Olá ${clientName}! Passando para confirmar seu agendamento de ${serviceName} no Instituto Bioflores para dia ${date} às ${time}. Podemos confirmar?` },
-    { name: 'Lembrete (Dia Anterior)', msg: `Olá ${clientName}! Lembrete do seu horário de ${serviceName} amanhã (${date}) às ${time} conosco. Te esperamos!` },
-    { name: 'Aviso de Atraso', msg: `Olá ${clientName}, tudo bem? Houve um pequeno imprevisto e podemos atrasar cerca de 15 minutos para o seu atendimento das ${time}. Agradecemos a compreensão!` },
-    { name: 'Cancelamento', msg: `Olá ${clientName}, confirmamos o cancelamento do seu horário de ${date} às ${time}. Quando desejar remarcar, estamos à disposição!` },
-    { name: 'Pós-atendimento', msg: `Olá ${clientName}, como você está se sentindo após a sessão de ${serviceName}? Qualquer dúvida ou desconforto, pode nos avisar.` }
-  ];
+  // Carregar mensagens customizadas do Firestore
+  let msgs = {};
+  try {
+    const snap = await getDoc(doc(db,'content','messages'));
+    if (snap.exists()) msgs = snap.data();
+  } catch {}
+  
+  const defaults = {
+    pending: `Olá {nome}! Passando para confirmar seu agendamento de {servico} no Instituto Bioflores para dia {data} às {hora}. Podemos confirmar?`,
+    confirmed: `Olá {nome}! Lembrete do seu horário de {servico} amanhã ({data}) às {hora} conosco. Te esperamos!`,
+    concluded: `Olá {nome}, como você está se sentindo após a sessão de {servico}? Qualquer dúvida ou desconforto, pode nos avisar.`,
+    cancelled: `Olá {nome}, confirmamos o cancelamento do seu horário de {data} às {hora}. Quando desejar remarcar, estamos à disposição!`,
+  };
+  const labels = { pending: 'Confirmação', confirmed: 'Lembrete', concluded: 'Pós-atendimento', cancelled: 'Cancelamento' };
+  
+  const templates = Object.keys(defaults).map(key => {
+    const raw = msgs[key] || defaults[key];
+    const msg = raw.replace(/{nome}/g, clientName).replace(/{servico}/g, serviceName).replace(/{data}/g, date).replace(/{hora}/g, time);
+    return { name: labels[key], msg };
+  });
   
   container.innerHTML = templates.map(t => {
     const encoded = encodeURIComponent(t.msg);
@@ -1198,10 +1283,44 @@ window.openWaTemplatesModal = (clientName, waPhone, serviceName, date, time, sta
       </a>
     `;
   }).join('');
-  
-  document.getElementById('wa-templates-modal').classList.remove('hidden');
 };
 window.closeWaTemplatesModal = () => document.getElementById('wa-templates-modal').classList.add('hidden');
+
+// ── MESSAGES ─────────────────────────────────────────
+const DEFAULT_MSGS = {
+  pending: `Olá {nome}! Passando para confirmar seu agendamento de {servico} no Instituto Bioflores para dia {data} às {hora}. Podemos confirmar?`,
+  confirmed: `Olá {nome}! Lembrete do seu horário de {servico} amanhã ({data}) às {hora} conosco. Te esperamos!`,
+  concluded: `Olá {nome}, como você está se sentindo após a sessão de {servico}? Qualquer dúvida ou desconforto, pode nos avisar.`,
+  cancelled: `Olá {nome}, confirmamos o cancelamento do seu horário de {data} às {hora}. Quando desejar remarcar, estamos à disposição!`,
+  waitlist: `Olá {nome}, um horário de {servico} no dia {data} às {hora} acaba de liberar! Deseja confirmar?`,
+};
+
+async function loadMessages() {
+  try {
+    const snap = await getDoc(doc(db,'content','messages'));
+    const d = snap.exists() ? snap.data() : {};
+    ['pending','confirmed','concluded','cancelled','waitlist'].forEach(key => {
+      const el = document.getElementById(`msg-${key}`);
+      if (el) el.value = d[key] || DEFAULT_MSGS[key] || '';
+    });
+  } catch {
+    // Preencher com defaults se não existe
+    ['pending','confirmed','concluded','cancelled','waitlist'].forEach(key => {
+      const el = document.getElementById(`msg-${key}`);
+      if (el) el.value = DEFAULT_MSGS[key] || '';
+    });
+  }
+}
+
+window.saveMessages = async () => {
+  const data = {};
+  ['pending','confirmed','concluded','cancelled','waitlist'].forEach(key => {
+    const el = document.getElementById(`msg-${key}`);
+    if (el) data[key] = el.value.trim();
+  });
+  await setDoc(doc(db,'content','messages'), data);
+  showToast('Mensagens salvas!');
+};
 
 // ── SERVICES ─────────────────────────────────────────
 let allSvcs = [];
@@ -1617,11 +1736,23 @@ window.deleteManualClient = async uid => {
   }
 };
 window.deleteClient = async uid => {
-  if (!confirm('Tem certeza que deseja excluir este cliente do sistema? Historico de anamnese também será excluído.')) return;
+  if (!confirm('Tem certeza que deseja excluir este cliente? Todos os dados (perfil, anamnese e agendamentos) serão removidos permanentemente.')) return;
   try {
-    await deleteDoc(doc(db, 'clientes', uid));
-    await deleteDoc(doc(db, 'anamnese', uid));
-    showToast('Cliente excluído!');
+    // Excluir de todas as coleções possíveis
+    const deletions = [
+      deleteDoc(doc(db, 'users', uid)).catch(() => {}),
+      deleteDoc(doc(db, 'clientes', uid)).catch(() => {}),
+      deleteDoc(doc(db, 'anamnese', uid)).catch(() => {}),
+    ];
+    // Excluir agendamentos vinculados
+    try {
+      const apptSnap = await getDocs(query(collection(db,'appointments'), where('userId','==',uid)));
+      apptSnap.docs.forEach(d => deletions.push(deleteDoc(doc(db,'appointments',d.id))));
+      const apptSnap2 = await getDocs(query(collection(db,'appointments'), where('clientId','==',uid)));
+      apptSnap2.docs.forEach(d => deletions.push(deleteDoc(doc(db,'appointments',d.id))));
+    } catch {}
+    await Promise.all(deletions);
+    showToast('Cliente excluído com sucesso!');
     loadClients();
   } catch(e) {
     showToast('Erro ao excluir.');

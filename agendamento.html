@@ -246,7 +246,10 @@ onAuthStateChanged(auth, async user => {
   currentUser = user;
   if (user) {
     try {
-      const snap = await getDoc(doc(db, 'clientes', user.uid));
+      // Tenta buscar em 'users' (signup) e depois em 'clientes' (manual)
+      let snap = await getDoc(doc(db, 'users', user.uid));
+      if (snap.exists()) { currentUserData = snap.data(); return; }
+      snap = await getDoc(doc(db, 'clientes', user.uid));
       if (snap.exists()) currentUserData = snap.data();
     } catch {}
   }
@@ -368,7 +371,7 @@ async function loadSlots(dateStr) {
     return `<button onclick="${taken ? '' : `pickSlot('${s}', this)`}"
       class="slot-btn py-2.5 text-xs font-bold rounded-xl border-2 transition-all
         ${taken ? 'border-gray-100 bg-gray-50 text-warm-gray/30 cursor-not-allowed' : 'border-rose-light/40 bg-white hover:border-rose-gold hover:bg-rose-light/10 text-warm-gray cursor-pointer'}"
-      ${taken ? 'disabled' : ''}>${s}${taken ? '<br><span class="text-[8px] font-normal tracking-tight">Ocupado</span>' : ''}</button>`;
+      ${taken ? 'disabled' : ''}>${s} ${taken ? '<span class="text-[8px] font-normal">· Ocupado</span>' : ''}</button>`;
   }).join('');
 }
 
