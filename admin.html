@@ -926,6 +926,36 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- MODAL WHATSAPP TEMPLATES -->
+<div id="wa-templates-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between p-5 border-b border-rose-light/30 bg-stone-neutral/30">
+      <h3 class="font-black uppercase tracking-tight text-navy-brand text-sm">Enviar Mensagem</h3>
+      <button onclick="closeWaTemplatesModal()" class="text-warm-gray/30 hover:text-rose-gold transition-colors cursor-pointer p-1">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="p-6 space-y-3" id="wa-templates-container">
+    </div>
+  </div>
+</div>
+
+<!-- MODAL WAITLIST MATCHES -->
+<div id="waitlist-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between p-5 border-b border-rose-light/30 bg-rose-light/20">
+      <h3 class="font-black uppercase tracking-tight text-navy-brand text-sm flex items-center gap-2"><span class="material-symbols-outlined text-rose-gold">campaign</span> Fila de Espera</h3>
+      <button onclick="closeWaitlistModal()" class="text-warm-gray/30 hover:text-rose-gold transition-colors cursor-pointer p-1">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="p-6 text-sm text-warm-gray/80">
+      <p class="mb-4">Este horário acabou de ser liberado! Os seguintes clientes estão aguardando por esta vaga:</p>
+      <div id="waitlist-matches-container" class="space-y-3"></div>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-navy-brand text-white px-6 py-3 rounded-full text-sm font-semibold shadow-2xl opacity-0 transition-all duration-300 z-[100] pointer-events-none whitespace-nowrap"></div>
 
@@ -934,7 +964,7 @@ import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.12.2/fire
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged }
                             from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
-         setDoc, getDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp }
+         setDoc, getDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, where }
                             from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL }
                             from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
@@ -1070,24 +1100,31 @@ function renderAppts() {
   list.innerHTML = data.map(a => {
     const digits=(a.phone||'').replace(/\D/g,'');
     const wa=digits?`55${digits}`:'';
-    const msg=encodeURIComponent(`Olá ${a.clientName}! Confirmando seu agendamento de ${a.serviceName} para ${a.date} às ${a.time}. Instituto Bioflores.`);
-    return `<div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20 flex flex-col lg:flex-row lg:items-center gap-4">
-      <div class="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">Cliente</p><p class="font-semibold">${a.clientName||'—'}</p><p class="text-xs text-warm-gray/40">${a.email||''}</p></div>
-        <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">Serviço</p><p class="font-semibold">${a.serviceName||'—'}</p></div>
-        <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">Data · Hora</p><p class="font-semibold">${a.date||'—'}</p><p class="text-xs text-warm-gray/40">${a.time||''}</p></div>
-        <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">Telefone</p><p class="font-semibold">${a.phone||'—'}</p></div>
+    
+    return `<div class="bg-white rounded-2xl shadow-sm border border-rose-light/20 overflow-hidden mb-4">
+      <div class="flex items-center gap-4 p-5 cursor-pointer hover:bg-stone-neutral/50 transition-colors" onclick="toggleApptCard('${a.id}')">
+        <div class="flex-1 min-w-0">
+          <p class="font-bold text-sm text-navy-brand truncate">${a.clientName||'—'}</p>
+          <p class="text-xs text-warm-gray/50 mt-0.5">${a.serviceName} · ${a.date} às ${a.time}</p>
+        </div>
+        <span class="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full ${cls[a.status]||'bg-gray-100 text-gray-500'} flex-shrink-0">${labels[a.status]||a.status}</span>
+        <span class="material-symbols-outlined text-warm-gray/30 transition-transform duration-300" id="icon-${a.id}">expand_more</span>
       </div>
-      <div class="flex items-center gap-2 flex-shrink-0 flex-wrap">
-        <span class="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full ${cls[a.status]||'bg-gray-100 text-gray-500'}">${labels[a.status]||a.status}</span>
-        ${wa?`<a href="https://wa.me/${wa}?text=${msg}" target="_blank" class="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition-colors cursor-pointer"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>WhatsApp</a>`:''}
-        <select onchange="updateStatus('${a.id}',this.value)" class="border border-rose-light/40 rounded-xl px-2 py-2 text-[11px] font-bold focus:outline-none cursor-pointer bg-white">
-          <option value="pending"   ${a.status==='pending'   ?'selected':''}>Pendente</option>
-          <option value="confirmed" ${a.status==='confirmed' ?'selected':''}>Confirmado</option>
-          <option value="concluded" ${a.status==='concluded' ?'selected':''}>Concluído</option>
-          <option value="cancelled" ${a.status==='cancelled' ?'selected':''}>Cancelado</option>
-        </select>
-        <button onclick="delAppt('${a.id}')" class="text-warm-gray/25 hover:text-red-400 transition-colors cursor-pointer p-1"><span class="material-symbols-outlined text-xl">delete</span></button>
+      <div id="card-${a.id}" class="hidden border-t border-rose-light/20 bg-stone-neutral/20 p-5 space-y-4">
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">Telefone</p><p class="font-semibold">${a.phone||'—'}</p></div>
+          <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">E-mail</p><p class="font-semibold text-xs truncate">${a.email||'—'}</p></div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-rose-light/20">
+          ${wa ? `<button onclick="openWaTemplatesModal('${a.clientName}', '${wa}', '${a.serviceName}', '${a.date}', '${a.time}', '${a.status}')" class="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition-colors cursor-pointer"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>Mensagem</button>` : ''}
+          <select onchange="updateStatus('${a.id}',this.value)" class="border border-rose-light/40 rounded-xl px-2 py-2 text-[11px] font-bold focus:outline-none cursor-pointer bg-white">
+            <option value="pending"   ${a.status==='pending'   ?'selected':''}>Pendente</option>
+            <option value="confirmed" ${a.status==='confirmed' ?'selected':''}>Confirmado</option>
+            <option value="concluded" ${a.status==='concluded' ?'selected':''}>Concluído</option>
+            <option value="cancelled" ${a.status==='cancelled' ?'selected':''}>Cancelado</option>
+          </select>
+          <button onclick="delAppt('${a.id}')" class="text-warm-gray/25 hover:text-red-400 transition-colors cursor-pointer p-1"><span class="material-symbols-outlined text-xl">delete</span></button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1099,8 +1136,72 @@ window.filterAppt = filter => {
   b.classList.add('border-rose-gold','text-rose-gold'); b.classList.remove('border-gray-200','text-warm-gray/60');
   renderAppts();
 };
-window.updateStatus = async (id, status) => { await updateDoc(doc(db,'appointments',id),{status}); showToast('Status atualizado'); };
+window.toggleApptCard = id => {
+  const c = document.getElementById(`card-${id}`);
+  const i = document.getElementById(`icon-${id}`);
+  if(c.classList.contains('hidden')) { c.classList.remove('hidden'); i.style.transform='rotate(180deg)'; }
+  else { c.classList.add('hidden'); i.style.transform='rotate(0deg)'; }
+};
+window.updateStatus = async (id, status) => { 
+  await updateDoc(doc(db,'appointments',id),{status}); 
+  showToast('Status atualizado'); 
+  
+  if (status === 'cancelled') {
+    const a = allAppts.find(x => x.id === id);
+    if (a) {
+      try {
+        const snap = await getDocs(query(collection(db,'fila_espera'), where('date','==',a.date), where('time','==',a.time)));
+        if (!snap.empty) {
+          const matches = snap.docs.map(d => ({id: d.id, ...d.data()}));
+          const container = document.getElementById('waitlist-matches-container');
+          container.innerHTML = matches.map(m => {
+            const digits = (m.phone||'').replace(/\D/g,'');
+            const wa = digits ? `55${digits}` : '';
+            const msg = encodeURIComponent(`Olá ${m.clientName}, o horário de ${m.date} às ${m.time} para ${m.serviceName} acaba de liberar! Deseja confirmar?`);
+            return `
+              <div class="p-3 border border-rose-light/40 rounded-xl bg-white flex flex-col gap-2">
+                <div>
+                  <p class="font-bold text-navy-brand">${m.clientName}</p>
+                  <p class="text-[11px] text-warm-gray/60">Aguardando: ${m.serviceName}</p>
+                </div>
+                ${wa ? `<a href="https://wa.me/${wa}?text=${msg}" target="_blank" class="flex justify-center items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition-colors cursor-pointer w-full"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>Avisar no WhatsApp</a>` : ''}
+              </div>
+            `;
+          }).join('');
+          document.getElementById('waitlist-modal').classList.remove('hidden');
+        }
+      } catch (e) { console.error('Erro ao buscar fila de espera', e); }
+    }
+  }
+};
 window.delAppt = async id => { if(!confirm('Excluir?')) return; await deleteDoc(doc(db,'appointments',id)); showToast('Excluído'); };
+window.closeWaitlistModal = () => document.getElementById('waitlist-modal').classList.add('hidden');
+
+window.openWaTemplatesModal = (clientName, waPhone, serviceName, date, time, status) => {
+  const container = document.getElementById('wa-templates-container');
+  const baseData = {clientName, serviceName, date, time};
+  
+  const templates = [
+    { name: 'Confirmação', msg: `Olá ${clientName}! Passando para confirmar seu agendamento de ${serviceName} no Instituto Bioflores para dia ${date} às ${time}. Podemos confirmar?` },
+    { name: 'Lembrete (Dia Anterior)', msg: `Olá ${clientName}! Lembrete do seu horário de ${serviceName} amanhã (${date}) às ${time} conosco. Te esperamos!` },
+    { name: 'Aviso de Atraso', msg: `Olá ${clientName}, tudo bem? Houve um pequeno imprevisto e podemos atrasar cerca de 15 minutos para o seu atendimento das ${time}. Agradecemos a compreensão!` },
+    { name: 'Cancelamento', msg: `Olá ${clientName}, confirmamos o cancelamento do seu horário de ${date} às ${time}. Quando desejar remarcar, estamos à disposição!` },
+    { name: 'Pós-atendimento', msg: `Olá ${clientName}, como você está se sentindo após a sessão de ${serviceName}? Qualquer dúvida ou desconforto, pode nos avisar.` }
+  ];
+  
+  container.innerHTML = templates.map(t => {
+    const encoded = encodeURIComponent(t.msg);
+    return `
+      <a href="https://wa.me/${waPhone}?text=${encoded}" target="_blank" onclick="closeWaTemplatesModal()" class="block p-3 rounded-xl border border-rose-light/40 hover:border-green-500 hover:bg-green-50 transition-all cursor-pointer">
+        <p class="font-bold text-navy-brand text-sm mb-1 flex justify-between">${t.name} <span class="material-symbols-outlined text-green-500 text-sm">send</span></p>
+        <p class="text-xs text-warm-gray/60 line-clamp-2">${t.msg}</p>
+      </a>
+    `;
+  }).join('');
+  
+  document.getElementById('wa-templates-modal').classList.remove('hidden');
+};
+window.closeWaTemplatesModal = () => document.getElementById('wa-templates-modal').classList.add('hidden');
 
 // ── SERVICES ─────────────────────────────────────────
 let allSvcs = [];
@@ -1220,7 +1321,8 @@ window.uploadProcImg = (i, input) => {
       document.getElementById(`proc-img-preview-${i}`).src = url;
       const urlInput = document.querySelector(`#proc-edit-${i} input[placeholder="URL da imagem"]`);
       if (urlInput) urlInput.value = url;
-      showToast('Imagem enviada!');
+      showToast('Imagem enviada e link gerado! Salvando procedimentos...');
+      await saveProcs();
     } catch (e) { showToast('Erro no upload. Verifique o Storage.'); console.error(e); }
   });
 };
@@ -1252,7 +1354,7 @@ window.handlePromoImg = input => {
   const file = input.files[0]; if (!file) return;
   input.value = '';
   // Promo card ratio: 3:1 (wide banner)
-  openCropModal(file, 3/1, croppedFile => {
+  openCropModal(file, 3/1, async croppedFile => {
     promoImgFile = croppedFile;
     const reader = new FileReader();
     reader.onload = e => {
@@ -1263,6 +1365,7 @@ window.handlePromoImg = input => {
       el.innerHTML = '';
     };
     reader.readAsDataURL(croppedFile);
+    await savePromoCard();
   });
 };
 
@@ -1513,6 +1616,18 @@ window.deleteManualClient = async uid => {
     console.error(e);
   }
 };
+window.deleteClient = async uid => {
+  if (!confirm('Tem certeza que deseja excluir este cliente do sistema? Historico de anamnese também será excluído.')) return;
+  try {
+    await deleteDoc(doc(db, 'clientes', uid));
+    await deleteDoc(doc(db, 'anamnese', uid));
+    showToast('Cliente excluído!');
+    loadClients();
+  } catch(e) {
+    showToast('Erro ao excluir.');
+    console.error(e);
+  }
+};
 
 window.closeNewClientModal = () => {
   document.getElementById('new-client-modal').classList.add('hidden');
@@ -1608,6 +1723,14 @@ window.saveAdminBooking = async () => {
   btn.textContent = 'Agendando...'; btn.disabled = true;
   
   try {
+    // Validar duplo agendamento
+    const snap = await getDocs(query(collection(db,'appointments'), where('date','==',dateStr), where('time','==',tim), where('status','!=','cancelled')));
+    if (!snap.empty) {
+      showToast('Oops! Este horário já está ocupado. Por favor, escolha outro.');
+      btn.textContent = 'Agendar'; btn.disabled = false;
+      return;
+    }
+
     const u = clientsData.find(c => c.uid === currentClientUid) || {};
     await addDoc(collection(db, 'appointments'), {
       clientId: currentClientUid,

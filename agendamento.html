@@ -240,6 +240,7 @@ onAuthStateChanged(auth, user => { currentUser = user; });
 let selectedService = null;
 let selectedDate    = null;   // 'YYYY-MM-DD'
 let selectedTime    = null;
+let isWaitlistMode  = false;
 let availability    = { days:[1,2,3,4,5], start:'09:00', end:'18:00', interval:60 };
 let takenSlots      = [];     // ['HH:MM', ...]
 let waNumber        = '';
@@ -325,8 +326,9 @@ window.prevMonth = () => { calMonth--; if (calMonth < 0) { calMonth=11; calYear-
 window.nextMonth = () => { calMonth++; if (calMonth > 11) { calMonth=0; calYear++; } buildCalendar(); };
 
 window.pickDate = async dateStr => {
-  selectedDate = dateStr; selectedTime = null;
-  document.getElementById('btn-step2').disabled = true;
+  selectedDate = dateStr; selectedTime = null; isWaitlistMode = false;
+  const btn = document.getElementById('btn-step2');
+  btn.disabled = true; btn.textContent = 'Continuar';
   buildCalendar();
   await loadSlots(dateStr);
 };
@@ -335,10 +337,13 @@ async function loadSlots(dateStr) {
   const grid = document.getElementById('slots-grid');
   grid.innerHTML = '<div class="col-span-3 text-center py-4 text-warm-gray/30 text-xs">Carregando...</div>';
 
+  const [y,m,d] = dateStr.split('-');
+  const dateFormatted = `${d}/${m}/${y}`;
+
   // Fetch taken slots for this date
   try {
-    const snap = await getDocs(query(collection(db,'appointments'), where('date','==',dateStr), where('status','!=','cancelled')));
-    takenSlots = snap.docs.map(d => d.data().time);
+    const snap = await getDocs(query(collection(db,'appointments'), where('date','==',dateFormatted), where('status','!=','cancelled')));
+    takenSlots = snap.docs.map(doc => doc.data().time);
   } catch { takenSlots = []; }
 
   const slots = generateSlots();
@@ -346,10 +351,10 @@ async function loadSlots(dateStr) {
 
   grid.innerHTML = slots.map(s => {
     const taken = takenSlots.includes(s);
-    return `<button onclick="${taken ? '' : `pickSlot('${s}', this)`}"
+    return `<button onclick="pickSlot('${s}', this, ${taken})"
       class="slot-btn py-2.5 text-xs font-bold rounded-xl border-2 transition-all
-        ${taken ? 'taken border-gray-100 bg-gray-50 text-warm-gray/30' : 'border-rose-light/40 bg-white hover:border-rose-gold hover:bg-rose-light/10 text-warm-gray cursor-pointer'}"
-      ${taken ? 'disabled' : ''}>${s}</button>`;
+        ${taken ? 'border-gray-100 bg-gray-50 text-warm-gray/40' : 'border-rose-light/40 bg-white hover:border-rose-gold hover:bg-rose-light/10 text-warm-gray cursor-pointer'}"
+      >${s}${taken ? '<br><span class="text-[8px] font-normal tracking-tight">Ocupado (Fila)</span>' : ''}</button>`;
   }).join('');
 }
 
@@ -376,11 +381,21 @@ function generateSlots() {
   return slots;
 }
 
-window.pickSlot = (time, el) => {
+window.pickSlot = (time, el, isWaitlist = false) => {
   selectedTime = time;
-  document.querySelectorAll('.slot-btn:not(.taken)').forEach(b => b.classList.remove('border-rose-gold','bg-rose-light/20','text-rose-gold'));
+  isWaitlistMode = isWaitlist;
+  document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('border-rose-gold','bg-rose-light/20','text-rose-gold'));
   el.classList.add('border-rose-gold','bg-rose-light/20','text-rose-gold');
-  document.getElementById('btn-step2').disabled = false;
+  const btn = document.getElementById('btn-step2');
+  btn.disabled = false;
+  btn.textContent = isWaitlist ? 'Me avisar quando liberar' : 'Continuar';
+  if(isWaitlist) {
+      btn.classList.replace('bg-rose-gold', 'bg-warm-gray');
+      btn.classList.replace('hover:bg-deep-rose', 'hover:bg-navy-brand');
+  } else {
+      btn.classList.replace('bg-warm-gray', 'bg-rose-gold');
+      btn.classList.replace('hover:bg-navy-brand', 'hover:bg-deep-rose');
+  }
 };
 
 // ── STEPS ────────────────────────────────────────────
@@ -393,6 +408,21 @@ window.goStep = step => {
     document.getElementById('summary-service').textContent = selectedService?.name || '—';
     document.getElementById('summary-date').textContent = dateFormatted;
     document.getElementById('summary-time').textContent = selectedTime;
+    
+    // Configurar step 3 para fila de espera
+    const step3Title = document.querySelector('#step-3 h2');
+    const submitBtn = document.getElementById('btn-submit');
+    if (isWaitlistMode) {
+      step3Title.textContent = 'Fila de Espera';
+      submitBtn.textContent = 'Confirmar interesse na vaga';
+      submitBtn.classList.replace('bg-rose-gold', 'bg-warm-gray');
+      submitBtn.classList.replace('hover:bg-deep-rose', 'hover:bg-navy-brand');
+    } else {
+      step3Title.textContent = 'Seus dados';
+      submitBtn.textContent = 'Confirmar agendamento';
+      submitBtn.classList.replace('bg-warm-gray', 'bg-rose-gold');
+      submitBtn.classList.replace('hover:bg-navy-brand', 'hover:bg-deep-rose');
+    }
   }
   document.querySelectorAll('.step-section').forEach(s => s.classList.add('hidden'));
   document.getElementById(`step-${step}`).classList.remove('hidden');
@@ -419,24 +449,50 @@ window.submitBooking = async () => {
 
   if (!name || !phone) { err.textContent = 'Preencha nome e celular para continuar.'; err.classList.remove('hidden'); return; }
   err.classList.add('hidden');
-  btn.textContent = 'Confirmando...'; btn.disabled = true;
+  btn.textContent = 'Processando...'; btn.disabled = true;
 
   const [y,m,d] = selectedDate.split('-');
   const dateFormatted = `${d}/${m}/${y}`;
 
   try {
-    await addDoc(collection(db,'appointments'), {
-      clientName:  name,
-      phone,
-      email,
-      serviceId:   selectedService.id,
-      serviceName: selectedService.name,
-      date:        dateFormatted,
-      time:        selectedTime,
-      status:      'pending',
-      createdAt:   serverTimestamp(),
-      ...(currentUser ? { userId: currentUser.uid } : {}),
-    });
+    if (isWaitlistMode) {
+      await addDoc(collection(db,'fila_espera'), {
+        clientName:  name,
+        phone,
+        email,
+        serviceId:   selectedService.id,
+        serviceName: selectedService.name,
+        date:        dateFormatted,
+        time:        selectedTime,
+        createdAt:   serverTimestamp(),
+      });
+      document.querySelector('#step-4 h2').textContent = 'Na fila de espera!';
+      document.querySelector('#step-4 p').textContent = 'Se o horário liberar, te avisaremos imediatamente pelo WhatsApp.';
+    } else {
+      // Validar agendamento duplo
+      const snap = await getDocs(query(collection(db,'appointments'), where('date','==',dateFormatted), where('time','==',selectedTime), where('status','!=','cancelled')));
+      if (!snap.empty) {
+        err.textContent = 'Oops! Este horário acabou de ser ocupado. Por favor, escolha outro ou entre na fila.';
+        err.classList.remove('hidden');
+        btn.textContent = 'Confirmar agendamento'; btn.disabled = false;
+        return;
+      }
+
+      await addDoc(collection(db,'appointments'), {
+        clientName:  name,
+        phone,
+        email,
+        serviceId:   selectedService.id,
+        serviceName: selectedService.name,
+        date:        dateFormatted,
+        time:        selectedTime,
+        status:      'pending',
+        createdAt:   serverTimestamp(),
+        ...(currentUser ? { userId: currentUser.uid } : {}),
+      });
+      document.querySelector('#step-4 h2').textContent = 'Agendamento confirmado!';
+      document.querySelector('#step-4 p').textContent = 'Recebemos sua solicitação. Em breve entraremos em contato pelo WhatsApp para confirmar.';
+    }
 
     // Show confirmation
     document.getElementById('conf-service').textContent = selectedService.name;
@@ -445,7 +501,8 @@ window.submitBooking = async () => {
     document.getElementById('conf-name').textContent    = name;
 
     if (waNumber) {
-      const msg = encodeURIComponent(`Olá! Gostaria de confirmar meu agendamento:\n\n*Serviço:* ${selectedService.name}\n*Data:* ${dateFormatted}\n*Horário:* ${selectedTime}\n*Nome:* ${name}`);
+      const textBase = isWaitlistMode ? 'Olá! Gostaria de entrar na fila de espera para:' : 'Olá! Gostaria de confirmar meu agendamento:';
+      const msg = encodeURIComponent(`${textBase}\n\n*Serviço:* ${selectedService.name}\n*Data:* ${dateFormatted}\n*Horário:* ${selectedTime}\n*Nome:* ${name}`);
       document.getElementById('conf-wa-link').href = `https://wa.me/${waNumber}?text=${msg}`;
     } else {
       document.getElementById('conf-wa-link').classList.add('hidden');
@@ -453,9 +510,10 @@ window.submitBooking = async () => {
 
     goStep(4);
   } catch (e) {
-    err.textContent = 'Erro ao confirmar agendamento. Tente novamente.';
+    err.textContent = 'Erro ao processar. Tente novamente.';
     err.classList.remove('hidden');
-    btn.textContent = 'Confirmar agendamento'; btn.disabled = false;
+    btn.textContent = isWaitlistMode ? 'Confirmar interesse na vaga' : 'Confirmar agendamento'; 
+    btn.disabled = false;
   }
 };
 </script>
