@@ -1571,8 +1571,8 @@ window.renderClientsList = (data) => {
         </div>
         ${u.isManual ? `
           <button onclick="event.stopPropagation(); editManualClient('${u.uid}')" class="text-warm-gray/30 hover:text-rose-gold p-1.5 transition-colors cursor-pointer" title="Editar"><span class="material-symbols-outlined text-lg">edit</span></button>
-          <button onclick="event.stopPropagation(); deleteManualClient('${u.uid}')" class="text-warm-gray/30 hover:text-red-400 p-1.5 transition-colors cursor-pointer" title="Excluir"><span class="material-symbols-outlined text-lg">delete</span></button>
         ` : ''}
+        <button onclick="event.stopPropagation(); deleteClient('${u.uid}')" class="text-warm-gray/30 hover:text-red-400 p-1.5 transition-colors cursor-pointer" title="Excluir"><span class="material-symbols-outlined text-lg">delete</span></button>
         <span class="material-symbols-outlined text-warm-gray/25 text-base flex-shrink-0 ml-1">chevron_right</span>
       </div>`;
   }).join('');
@@ -1723,9 +1723,10 @@ window.saveAdminBooking = async () => {
   btn.textContent = 'Agendando...'; btn.disabled = true;
   
   try {
-    // Validar duplo agendamento
-    const snap = await getDocs(query(collection(db,'appointments'), where('date','==',dateStr), where('time','==',tim), where('status','!=','cancelled')));
-    if (!snap.empty) {
+    // Validar duplo agendamento (filtro client-side)
+    const snap = await getDocs(query(collection(db,'appointments'), where('date','==',dateStr), where('time','==',tim)));
+    const activeAppts = snap.docs.filter(dc => dc.data().status !== 'cancelled');
+    if (activeAppts.length > 0) {
       showToast('Oops! Este horário já está ocupado. Por favor, escolha outro.');
       btn.textContent = 'Agendar'; btn.disabled = false;
       return;
@@ -2074,6 +2075,7 @@ window.closeCropModal = () => {
 
 window.confirmCrop = () => {
   if (!cropperInstance || !_cropCallback) return;
+  const cb = _cropCallback; // Salvar referência ANTES de fechar o modal
   const btn = document.getElementById('crop-confirm-btn');
   btn.textContent = 'Processando...'; btn.disabled = true;
   cropperInstance.getCroppedCanvas({ maxWidth: 1920, maxHeight: 1920, imageSmoothingQuality: 'high' })
@@ -2081,7 +2083,7 @@ window.confirmCrop = () => {
       const file = new File([blob], 'imagem.jpg', { type: 'image/jpeg' });
       closeCropModal();
       btn.textContent = 'Confirmar'; btn.disabled = false;
-      _cropCallback(file);
+      cb(file); // Usar referência salva
     }, 'image/jpeg', 0.92);
 };
 
