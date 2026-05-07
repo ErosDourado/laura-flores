@@ -14,7 +14,7 @@ try {
 }
 
 // O e-mail da Laura vai ser guardado no firebase functions config ou hardcoded
-const CALENDAR_ID = process.env.LAURA_CALENDAR_EMAIL || 'institutobioflores@gmail.com'; 
+const CALENDAR_ID = process.env.LAURA_CALENDAR_EMAIL || 'institutobioflores@gmail.com';
 
 exports.syncAppointmentToCalendar = functions.firestore
   .document('appointments/{appointmentId}')
@@ -25,24 +25,24 @@ exports.syncAppointmentToCalendar = functions.firestore
     }
 
     const data = snap.data();
-    
+
     // Converte a data (ex: 28/04/2026) e hora (ex: 14:00) para o formato do Google
     // Certifique-se que o frontend manda 'DD/MM/YYYY' ou adapte aqui
     let dia, mes, ano;
     if (data.date.includes('/')) {
-        [dia, mes, ano] = data.date.split('/');
+      [dia, mes, ano] = data.date.split('/');
     } else if (data.date.includes('-')) {
-        [ano, mes, dia] = data.date.split('-');
+      [ano, mes, dia] = data.date.split('-');
     } else {
-        console.error("Formato de data não reconhecido:", data.date);
-        return null;
+      console.error("Formato de data não reconhecido:", data.date);
+      return null;
     }
-    
+
     const startTime = `${ano}-${mes}-${dia}T${data.time}:00-03:00`; // Fuso horário de Brasília
-    
+
     const startDate = new Date(startTime);
     // Assumindo que a consulta dura 1 hora
-    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); 
+    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
 
     const event = {
       summary: `${data.serviceName} - ${data.clientName}`,
@@ -73,7 +73,7 @@ exports.syncAppointmentToCalendar = functions.firestore
         resource: event,
       });
       console.log('Evento criado no Google Calendar com sucesso! ID:', res.data.id);
-      
+
       // Salva o ID do evento do Google no documento do Firebase
       return snap.ref.update({ googleCalendarEventId: res.data.id });
     } catch (error) {

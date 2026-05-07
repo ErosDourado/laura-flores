@@ -227,7 +227,7 @@
 <!-- Features Row — scroll lateral compacto -->
 <section class="py-10 md:py-14 bg-stone-neutral overflow-hidden">
 <div class="max-w-7xl mx-auto px-4 md:px-6">
-<div class="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 hide-scrollbar scroll-smooth md:justify-center md:overflow-x-visible md:snap-none">
+<div id="features-container" class="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 hide-scrollbar scroll-smooth md:justify-center md:overflow-x-visible md:snap-none">
 <div class="flex-none snap-center w-56 sm:w-64 bg-deep-rose p-5 text-white rounded-xl shadow-xl">
 <span class="material-symbols-outlined text-rose-light text-2xl mb-3 block">location_on</span>
 <h3 class="font-headline font-bold text-sm mb-1 uppercase tracking-wide">Localização</h3>
@@ -281,7 +281,7 @@
 <section class="py-10 md:py-16 bg-stone-neutral" id="testimonials">
 <div class="max-w-7xl mx-auto px-4 md:px-6 text-center">
 <h2 class="font-headline text-2xl md:text-4xl font-bold text-warm-gray uppercase tracking-tight mb-10 md:mb-14">Depoimentos</h2>
-<div class="flex overflow-x-auto snap-x snap-mandatory gap-4 md:gap-6 pb-6 hide-scrollbar scroll-smooth md:grid md:grid-cols-3 md:overflow-x-visible md:snap-none">
+<div id="testimonials-container" class="flex overflow-x-auto snap-x snap-mandatory gap-4 md:gap-6 pb-6 hide-scrollbar scroll-smooth md:grid md:grid-cols-3 md:overflow-x-visible md:snap-none">
 <div class="flex-none snap-center w-72 sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col justify-between text-left">
 <p class="text-warm-gray/80 mb-6 font-medium leading-relaxed italic text-sm">"Eu já era fã do trabalho que ela mostra no Instagram, fiquei mais fã ainda quando tomei a decisão de me consultar — foi a minha melhor escolha!"</p>
 <div class="flex items-center gap-3">
@@ -450,11 +450,63 @@
         } catch {}
     }
 
+    const DEFAULT_FEATURES = [
+        { icon: 'location_on', title: 'Localização', text: 'Fácil acesso por vias principais com infraestrutura completa.' },
+        { icon: 'person', title: 'Equipe qualificada', text: 'Profissionais experientes e altamente treinados.' },
+        { icon: 'sentiment_satisfied', title: 'Ambiente acolhedor', text: 'Projetado para conforto e relaxamento total.' },
+        { icon: 'workspace_premium', title: '9.000 procedimentos', text: 'Mais de 9 mil procedimentos no Brasil e exterior.' }
+    ];
+
+    const DEFAULT_TESTIMONIALS = [
+        { text: '"Eu já era fã do trabalho que ela mostra no Instagram, fiquei mais fã ainda quando tomei a decisão de me consultar — foi a minha melhor escolha!"', image: 'https://randomuser.me/api/portraits/women/44.jpg', name: 'Lucia Maria', role: 'Paciente' },
+        { text: '"Profissional completa! Passa muita confiança em todas as explicações, além de ter uma mão levíssima! Voltarei sempre."', image: 'https://randomuser.me/api/portraits/women/65.jpg', name: 'Mariana Alves', role: 'Paciente' },
+        { text: '"Entende todas as expectativas, respeita a natureza do nosso rosto. Estou muito feliz com os resultados."', image: 'https://randomuser.me/api/portraits/women/23.jpg', name: 'Luiza Santos', role: 'Paciente' }
+    ];
+
+    async function loadFeaturesAndTestimonials() {
+        try {
+            const snapFeatures = await getDoc(doc(db, 'content', 'home_features'));
+            const features = snapFeatures.exists() ? (snapFeatures.data().items || DEFAULT_FEATURES) : DEFAULT_FEATURES;
+            
+            const featuresContainer = document.getElementById('features-container');
+            if (featuresContainer) {
+                featuresContainer.innerHTML = features.map(f => `
+                    <div class="flex-none snap-center w-56 sm:w-64 bg-deep-rose p-5 text-white rounded-xl shadow-xl">
+                    <span class="material-symbols-outlined text-rose-light text-2xl mb-3 block">${f.icon}</span>
+                    <h3 class="font-headline font-bold text-sm mb-1 uppercase tracking-wide">${f.title}</h3>
+                    <p class="text-white/70 text-xs leading-relaxed">${f.text}</p>
+                    </div>`).join('');
+            }
+            
+            const snapTestimonials = await getDoc(doc(db, 'content', 'testimonials'));
+            const testimonials = snapTestimonials.exists() ? (snapTestimonials.data().items || DEFAULT_TESTIMONIALS) : DEFAULT_TESTIMONIALS;
+            
+            const testimonialsContainer = document.getElementById('testimonials-container');
+            if (testimonialsContainer) {
+                testimonialsContainer.innerHTML = testimonials.map(t => `
+                    <div class="flex-none snap-center w-72 sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col justify-between text-left">
+                    <p class="text-warm-gray/80 mb-6 font-medium leading-relaxed italic text-sm">${t.text}</p>
+                    <div class="flex items-center gap-3">
+                    <img src="${t.image}" alt="${t.name}" class="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-rose-light"/>
+                    <div>
+                    <p class="font-bold text-xs uppercase">${t.name}</p>
+                    <p class="text-[10px] font-semibold text-rose-gold uppercase tracking-wider">${t.role}</p>
+                    </div>
+                    </div>
+                    </div>`).join('');
+            }
+        } catch (e) {
+            console.error("Erro ao carregar features e depoimentos", e);
+        }
+    }
+
+
     async function initApp() {
         // Load procedures from Firebase (with fallback)
         const procedimentos = await loadProcedures();
         injectProcedures(procedimentos);
         loadPromoCard();
+        await loadFeaturesAndTestimonials();
 
         // Load contact data from dados.json
         try {

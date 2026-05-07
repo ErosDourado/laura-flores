@@ -216,8 +216,8 @@ tailwind.config = {
       </div>
 
       <!-- Feed de procedimentos -->
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight">Feed</h2>
+      <div class="flex items-center justify-between mb-4 mt-8">
+        <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight">Procedimentos</h2>
         <div class="flex gap-2">
           <button onclick="saveProcs()" class="border border-rose-gold text-rose-gold px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-rose-light/20 transition-colors cursor-pointer">
             Salvar tudo
@@ -227,7 +227,36 @@ tailwind.config = {
           </button>
         </div>
       </div>
-      <div id="procedures-list" class="space-y-2">
+      <div id="procedures-list" class="space-y-2 mb-6">
+        <div class="text-center py-12 text-warm-gray/30 text-sm">Carregando...</div>
+      </div>
+
+      <!-- Diferenciais -->
+      <div class="flex items-center justify-between mb-4 mt-8">
+        <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight">Diferenciais (Cards)</h2>
+        <div class="flex gap-2">
+          <button onclick="saveFeatures()" class="border border-rose-gold text-rose-gold px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-rose-light/20 transition-colors cursor-pointer">
+            Salvar cards
+          </button>
+        </div>
+      </div>
+      <div id="features-list" class="space-y-2 mb-6">
+        <div class="text-center py-12 text-warm-gray/30 text-sm">Carregando...</div>
+      </div>
+
+      <!-- Depoimentos -->
+      <div class="flex items-center justify-between mb-4 mt-8">
+        <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight">Depoimentos</h2>
+        <div class="flex gap-2">
+          <button onclick="saveTestimonials()" class="border border-rose-gold text-rose-gold px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-rose-light/20 transition-colors cursor-pointer">
+            Salvar depoimentos
+          </button>
+          <button onclick="addTestimonial()" class="flex items-center gap-1.5 bg-rose-gold text-white px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-deep-rose transition-colors cursor-pointer shadow-sm">
+            <span class="material-symbols-outlined text-sm">add</span>Adicionar
+          </button>
+        </div>
+      </div>
+      <div id="testimonials-list" class="space-y-2 mb-6">
         <div class="text-center py-12 text-warm-gray/30 text-sm">Carregando...</div>
       </div>
     </div>
@@ -1074,7 +1103,7 @@ onAuthStateChanged(auth, async user => {
     if (isAdmin) {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('dashboard').classList.remove('hidden');
-      loadAppointments(); loadServices(); loadProcedures(); loadAvailability(); loadPromoCard(); loadClients(); loadMessages();
+      loadAppointments(); loadServices(); loadProcedures(); loadFeatures(); loadTestimonials(); loadAvailability(); loadPromoCard(); loadClients(); loadMessages();
     } else {
       alert("Acesso negado. Você não possui privilégios de administrador.");
       window.location.href = 'index.html';
@@ -1507,7 +1536,117 @@ window.uploadProcImg = (i, input) => {
 
 window.addProc = () => { localProcs.push({titulo:'',slug:'novo',imagem:'assets/treatment.png',descricao:''}); renderProcs(); };
 window.removeProc = i => { if(!confirm('Remover procedimento?')) return; localProcs.splice(i,1); renderProcs(); };
-window.saveProcs = async () => { await setDoc(doc(db,'content','procedures'),{items:localProcs}); showToast('Feed salvo!'); };
+window.saveProcs = async () => { await setDoc(doc(db,'content','procedures'),{items:localProcs}); showToast('Procedimentos salvos!'); };
+
+// ── FEED / FEATURES (Cards Diferenciais) ──────────────────
+let localFeatures = [];
+const DEFAULT_FEATURES = [
+  { icon: 'location_on', title: 'Localização', text: 'Fácil acesso por vias principais com infraestrutura completa.' },
+  { icon: 'person', title: 'Equipe qualificada', text: 'Profissionais experientes e altamente treinados.' },
+  { icon: 'sentiment_satisfied', title: 'Ambiente acolhedor', text: 'Projetado para conforto e relaxamento total.' },
+  { icon: 'workspace_premium', title: '9.000 procedimentos', text: 'Mais de 9 mil procedimentos no Brasil e exterior.' }
+];
+
+async function loadFeatures() {
+  try {
+    const snap = await getDoc(doc(db,'content','home_features'));
+    localFeatures = snap.exists() ? (snap.data().items||DEFAULT_FEATURES) : DEFAULT_FEATURES;
+  } catch { localFeatures = [...DEFAULT_FEATURES]; }
+  renderFeatures();
+}
+
+function renderFeatures() {
+  document.getElementById('features-list').innerHTML = localFeatures.map((f, i) => `
+    <div class="bg-white rounded-xl border border-rose-light/20 shadow-sm overflow-hidden mb-2">
+      <div class="flex flex-col p-4 gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10">
+            <input value="${f.icon}" oninput="localFeatures[${i}].icon=this.value" class="w-full border border-rose-light/30 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-rose-gold text-center" title="Ícone (Google Material Symbols)"/>
+          </div>
+          <div class="flex-1">
+            <input value="${f.title}" oninput="localFeatures[${i}].title=this.value" placeholder="Título" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold font-bold text-navy-brand uppercase tracking-wide"/>
+          </div>
+        </div>
+        <div>
+          <textarea rows="2" oninput="localFeatures[${i}].text=this.value" placeholder="Descrição" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold resize-none">${f.text}</textarea>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+window.saveFeatures = async () => { await setDoc(doc(db,'content','home_features'),{items:localFeatures}); showToast('Diferenciais salvos!'); };
+
+
+// ── FEED / TESTIMONIALS (Depoimentos) ─────────────────────
+let localTestimonials = [];
+const DEFAULT_TESTIMONIALS = [
+  { text: '"Eu já era fã do trabalho que ela mostra no Instagram, fiquei mais fã ainda quando tomei a decisão de me consultar — foi a minha melhor escolha!"', image: 'https://randomuser.me/api/portraits/women/44.jpg', name: 'Lucia Maria', role: 'Paciente' },
+  { text: '"Profissional completa! Passa muita confiança em todas as explicações, além de ter uma mão levíssima! Voltarei sempre."', image: 'https://randomuser.me/api/portraits/women/65.jpg', name: 'Mariana Alves', role: 'Paciente' },
+  { text: '"Entende todas as expectativas, respeita a natureza do nosso rosto. Estou muito feliz com os resultados."', image: 'https://randomuser.me/api/portraits/women/23.jpg', name: 'Luiza Santos', role: 'Paciente' }
+];
+
+async function loadTestimonials() {
+  try {
+    const snap = await getDoc(doc(db,'content','testimonials'));
+    localTestimonials = snap.exists() ? (snap.data().items||DEFAULT_TESTIMONIALS) : DEFAULT_TESTIMONIALS;
+  } catch { localTestimonials = [...DEFAULT_TESTIMONIALS]; }
+  renderTestimonials();
+}
+
+function renderTestimonials() {
+  document.getElementById('testimonials-list').innerHTML = localTestimonials.map((t, i) => `
+    <div class="bg-white rounded-xl border border-rose-light/20 shadow-sm overflow-hidden mb-2">
+      <div class="flex items-center px-5 py-3.5 gap-3 hover:bg-stone-neutral/50 transition-colors">
+        <span class="text-[9px] font-bold text-warm-gray/25 uppercase tracking-widest w-16 flex-shrink-0">Depo. ${String(i+1).padStart(2,'0')}</span>
+        <span class="font-bold text-sm text-navy-brand flex-1 truncate uppercase">${t.name||'Sem nome'}</span>
+        <button onclick="toggleTestimonialEdit(${i})" class="text-warm-gray/30 hover:text-rose-gold transition-colors flex-shrink-0 cursor-pointer p-1">
+          <span class="material-symbols-outlined text-base">edit</span>
+        </button>
+        <button onclick="removeTestimonial(${i})" class="text-warm-gray/20 hover:text-red-400 transition-colors flex-shrink-0 cursor-pointer p-1">
+          <span class="material-symbols-outlined text-base">delete</span>
+        </button>
+      </div>
+      <div id="testim-edit-${i}" class="hidden border-t border-rose-light/20 p-5 bg-stone-neutral/20 space-y-4">
+        <div class="flex gap-4">
+          <div class="w-16">
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Foto (URL)</label>
+            <img src="${t.image||'https://via.placeholder.com/150'}" id="testim-img-preview-${i}" class="w-12 h-12 rounded-full object-cover mb-2 ring-2 ring-rose-light"/>
+          </div>
+          <div class="flex-1">
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">URL da imagem</label>
+            <input value="${t.image||''}" oninput="localTestimonials[${i}].image=this.value;document.getElementById('testim-img-preview-${i}').src=this.value||'https://via.placeholder.com/150'" placeholder="https://..." class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Nome</label>
+            <input value="${t.name}" oninput="localTestimonials[${i}].name=this.value;renderTestimonialTitle(${i},this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Papel (Ex: Paciente)</label>
+            <input value="${t.role}" oninput="localTestimonials[${i}].role=this.value" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Depoimento</label>
+          <textarea rows="3" oninput="localTestimonials[${i}].text=this.value" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none">${t.text}</textarea>
+        </div>
+        <button onclick="saveTestimonials()" class="bg-rose-gold text-white px-6 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">
+          Salvar
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+window.toggleTestimonialEdit = i => document.getElementById(`testim-edit-${i}`).classList.toggle('hidden');
+window.renderTestimonialTitle = (i, val) => {
+  const el = document.querySelector(`#testim-edit-${i}`)?.closest('.bg-white')?.querySelector('.text-navy-brand');
+  if (el) el.textContent = val || 'Sem nome';
+};
+window.addTestimonial = () => { localTestimonials.push({name:'',role:'Paciente',image:'',text:''}); renderTestimonials(); };
+window.removeTestimonial = i => { if(!confirm('Remover depoimento?')) return; localTestimonials.splice(i,1); renderTestimonials(); };
+window.saveTestimonials = async () => { await setDoc(doc(db,'content','testimonials'),{items:localTestimonials}); showToast('Depoimentos salvos!'); };
+
 
 // ── PROMO CARD ────────────────────────────────────────
 let promoImgFile = null;
