@@ -61,7 +61,10 @@ tailwind.config = {
         <input id="l-email" type="email" autocomplete="email" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="seu@email.com"/>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Senha</label>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60">Senha</label>
+          <button onclick="showTab('recovery')" class="text-[10px] font-bold text-rose-gold hover:underline cursor-pointer">Esqueceu?</button>
+        </div>
         <input id="l-pass" type="password" autocomplete="current-password" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="••••••••"/>
       </div>
       <p id="l-error" class="text-red-500 text-xs hidden text-center"></p>
@@ -92,12 +95,27 @@ tailwind.config = {
       <p class="text-center text-xs text-warm-gray/40">Já tem conta? <button onclick="showTab('login')" class="text-rose-gold font-bold hover:underline cursor-pointer">Entrar</button></p>
     </div>
 
+    <!-- RECOVERY -->
+    <div id="panel-recovery" class="p-8 space-y-4 hidden">
+      <div class="text-center mb-6">
+        <h2 class="font-bold text-navy-brand mb-2">Recuperar Senha</h2>
+        <p class="text-xs text-warm-gray/70">Enviaremos um link de recuperação para o seu e-mail.</p>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Seu E-mail</label>
+        <input id="r-email" type="email" autocomplete="email" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="seu@email.com"/>
+      </div>
+      <p id="r-msg" class="text-xs hidden text-center font-semibold"></p>
+      <button onclick="doRecover()" id="r-btn" class="w-full bg-rose-gold text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">Enviar link</button>
+      <p class="text-center text-xs text-warm-gray/40"><button onclick="showTab('login')" class="text-rose-gold font-bold hover:underline cursor-pointer">Voltar para Login</button></p>
+    </div>
+
   </div>
 </main>
 
 <script type="module">
 import { initializeApp }      from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged }
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail }
                                from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, doc, setDoc, serverTimestamp }
                                from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
@@ -119,11 +137,14 @@ let isAuthAction = false;
 onAuthStateChanged(auth, user => { if (user && !isAuthAction) window.location.href = 'index.html'; });
 
 window.showTab = tab => {
-  ['login','signup'].forEach(t => {
-    document.getElementById(`panel-${t}`).classList.toggle('hidden', t !== tab);
+  ['login','signup','recovery'].forEach(t => {
+    const panel = document.getElementById(`panel-${t}`);
+    if (panel) panel.classList.toggle('hidden', t !== tab);
     const btn = document.getElementById(`tab-${t}`);
-    btn.classList.toggle('tab-active', t === tab);
-    btn.classList.toggle('text-warm-gray/50', t !== tab);
+    if (btn) {
+      btn.classList.toggle('tab-active', t === tab);
+      btn.classList.toggle('text-warm-gray/50', t !== tab);
+    }
   });
 };
 
@@ -180,6 +201,32 @@ window.doSignup = async () => {
 
 document.getElementById('l-pass').addEventListener('keydown', e => { if(e.key==='Enter') window.doLogin(); });
 document.getElementById('s-pass').addEventListener('keydown', e => { if(e.key==='Enter') window.doSignup(); });
+document.getElementById('r-email').addEventListener('keydown', e => { if(e.key==='Enter') window.doRecover(); });
+
+window.doRecover = async () => {
+  const email = document.getElementById('r-email').value.trim();
+  const msg   = document.getElementById('r-msg');
+  const btn   = document.getElementById('r-btn');
+  msg.classList.add('hidden');
+  if (!email) {
+    msg.textContent = 'Digite seu e-mail.'; msg.className = 'text-red-500 text-xs text-center font-semibold'; msg.classList.remove('hidden');
+    return;
+  }
+  btn.textContent = 'Enviando...'; btn.disabled = true;
+  try {
+    await sendPasswordResetEmail(auth, email);
+    msg.textContent = 'E-mail de recuperação enviado! Verifique sua caixa de entrada e spam.';
+    msg.className = 'text-green-600 text-xs text-center font-semibold';
+    msg.classList.remove('hidden');
+    btn.textContent = 'Enviar link'; btn.disabled = false;
+  } catch (e) {
+    msg.textContent = 'Erro ao enviar. Verifique o e-mail digitado.';
+    if (e.code === 'auth/user-not-found') msg.textContent = 'Usuário não encontrado.';
+    msg.className = 'text-red-500 text-xs text-center font-semibold';
+    msg.classList.remove('hidden');
+    btn.textContent = 'Enviar link'; btn.disabled = false;
+  }
+};
 document.addEventListener('contextmenu',e=>e.preventDefault());
 </script>
 </body>

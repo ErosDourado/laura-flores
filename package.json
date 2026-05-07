@@ -20,5 +20,8 @@
   "homepage": "https://github.com/ErosDourado/laura-flores#readme",
   "devDependencies": {
     "vite": "^8.0.10"
+  },
+  "dependencies": {
+    "puppeteer": "^24.43.0"
   }
 }

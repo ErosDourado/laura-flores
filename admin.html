@@ -62,9 +62,15 @@ tailwind.config = {
     </div>
     <div class="space-y-4">
       <input id="login-email" type="email" autocomplete="email" placeholder="E-mail" class="w-full border border-rose-light/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold"/>
-      <input id="login-password" type="password" autocomplete="current-password" placeholder="Senha" class="w-full border border-rose-light/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold"/>
-      <p id="login-error" class="text-red-500 text-xs hidden text-center"></p>
+      <div id="password-container">
+        <input id="login-password" type="password" autocomplete="current-password" placeholder="Senha" class="w-full border border-rose-light/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold"/>
+      </div>
+      <p id="login-error" class="text-xs hidden text-center font-semibold"></p>
       <button id="login-btn" onclick="doLogin()" class="w-full bg-rose-gold text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">Entrar</button>
+      <button id="recover-btn" onclick="doRecoverAdmin()" class="hidden w-full bg-navy-brand text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-navy-brand/80 transition-colors cursor-pointer">Enviar E-mail de Recuperação</button>
+      <div class="text-center mt-2">
+        <button id="toggle-recover-btn" onclick="toggleAdminRecover()" class="text-[10px] font-bold text-rose-gold hover:underline cursor-pointer uppercase tracking-wider">Esqueceu a senha?</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1057,7 +1063,7 @@ tailwind.config = {
 
 <script type="module">
 import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged }
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail }
                             from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
          setDoc, getDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, where }
@@ -1085,8 +1091,42 @@ window.doLogin = async () => {
   const err   = document.getElementById('login-error');
   const btn   = document.getElementById('login-btn');
   btn.textContent = 'Entrando...'; btn.disabled = true; err.classList.add('hidden');
+  err.className = 'text-red-500 text-xs text-center font-semibold';
   try { await signInWithEmailAndPassword(auth, email, pass); }
   catch { err.textContent = 'E-mail ou senha incorretos.'; err.classList.remove('hidden'); btn.textContent = 'Entrar'; btn.disabled = false; }
+};
+
+window.toggleAdminRecover = () => {
+  const isRecover = document.getElementById('password-container').classList.contains('hidden');
+  document.getElementById('password-container').classList.toggle('hidden', !isRecover);
+  document.getElementById('login-btn').classList.toggle('hidden', !isRecover);
+  document.getElementById('recover-btn').classList.toggle('hidden', isRecover);
+  document.getElementById('toggle-recover-btn').textContent = isRecover ? 'Esqueceu a senha?' : 'Voltar para Login';
+  document.getElementById('login-error').classList.add('hidden');
+};
+
+window.doRecoverAdmin = async () => {
+  const email = document.getElementById('login-email').value.trim();
+  const err   = document.getElementById('login-error');
+  const btn   = document.getElementById('recover-btn');
+  err.classList.add('hidden');
+  if (!email) {
+    err.textContent = 'Digite seu e-mail.'; err.className = 'text-red-500 text-xs text-center font-semibold'; err.classList.remove('hidden');
+    return;
+  }
+  btn.textContent = 'Enviando...'; btn.disabled = true;
+  try {
+    await sendPasswordResetEmail(auth, email);
+    err.textContent = 'E-mail enviado! Verifique sua caixa de entrada e spam.';
+    err.className = 'text-green-600 text-xs text-center font-semibold';
+    err.classList.remove('hidden');
+    btn.textContent = 'Enviar E-mail de Recuperação'; btn.disabled = false;
+  } catch (e) {
+    err.textContent = 'Erro ao enviar. Verifique o e-mail.';
+    err.className = 'text-red-500 text-xs text-center font-semibold';
+    err.classList.remove('hidden');
+    btn.textContent = 'Enviar E-mail de Recuperação'; btn.disabled = false;
+  }
 };
 
 onAuthStateChanged(auth, async user => {
