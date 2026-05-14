@@ -222,13 +222,13 @@ tailwind.config = {
       </div>
 
       <!-- Feed de procedimentos -->
-      <div class="flex items-center justify-between mb-4 mt-8">
-        <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight">Procedimentos</h2>
-        <div class="flex gap-2">
-          <button onclick="saveProcs()" class="border border-rose-gold text-rose-gold px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-rose-light/20 transition-colors cursor-pointer">
-            Salvar tudo
+      <div class="flex items-center justify-between gap-2 mb-4 mt-8">
+        <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight flex-shrink-0">Procedimentos</h2>
+        <div class="flex flex-wrap gap-2 justify-end">
+          <button onclick="saveProcs()" class="border border-rose-gold text-rose-gold px-3 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-rose-light/20 transition-colors cursor-pointer">
+            Salvar
           </button>
-          <button onclick="addProc()" class="flex items-center gap-1.5 bg-rose-gold text-white px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-deep-rose transition-colors cursor-pointer shadow-sm">
+          <button onclick="addProc()" class="flex items-center gap-1 bg-rose-gold text-white px-3 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-deep-rose transition-colors cursor-pointer shadow-sm">
             <span class="material-symbols-outlined text-sm">add</span>Adicionar
           </button>
         </div>
@@ -251,13 +251,13 @@ tailwind.config = {
       </div>
 
       <!-- Depoimentos -->
-      <div class="flex items-center justify-between mb-4 mt-8">
-        <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight">Depoimentos</h2>
-        <div class="flex gap-2">
-          <button onclick="saveTestimonials()" class="border border-rose-gold text-rose-gold px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-rose-light/20 transition-colors cursor-pointer">
-            Salvar depoimentos
+      <div class="flex items-center justify-between gap-2 mb-4 mt-8">
+        <h2 class="font-black text-lg text-navy-brand uppercase tracking-tight flex-shrink-0">Depoimentos</h2>
+        <div class="flex flex-wrap gap-2 justify-end">
+          <button onclick="saveTestimonials()" class="border border-rose-gold text-rose-gold px-3 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-rose-light/20 transition-colors cursor-pointer">
+            Salvar
           </button>
-          <button onclick="addTestimonial()" class="flex items-center gap-1.5 bg-rose-gold text-white px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-deep-rose transition-colors cursor-pointer shadow-sm">
+          <button onclick="addTestimonial()" class="flex items-center gap-1 bg-rose-gold text-white px-3 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-deep-rose transition-colors cursor-pointer shadow-sm">
             <span class="material-symbols-outlined text-sm">add</span>Adicionar
           </button>
         </div>
@@ -314,11 +314,9 @@ tailwind.config = {
               <p id="client-email-display" class="text-white/55 text-xs"></p>
             </div>
           </div>
-          <button onclick="openAdminBookingModal()" class="flex-shrink-0 bg-white text-rose-gold font-bold px-4 py-2 rounded-xl text-[11px] uppercase tracking-widest hover:bg-white/90 transition-colors shadow-sm hidden sm:block">
-            Agendar Horário
-          </button>
-          <button onclick="openAdminBookingModal()" class="flex-shrink-0 bg-white text-rose-gold font-bold p-2.5 rounded-xl hover:bg-white/90 transition-colors shadow-sm sm:hidden" title="Agendar Horário">
-            <span class="material-symbols-outlined text-xl">calendar_month</span>
+          <button onclick="openAdminBookingModal()" class="flex-shrink-0 flex items-center gap-1.5 bg-white text-rose-gold font-bold px-3 py-2 rounded-xl text-[11px] uppercase tracking-widest hover:bg-white/90 transition-colors shadow-sm">
+            <span class="material-symbols-outlined text-base">calendar_month</span>
+            <span>Agendar</span>
           </button>
         </div>
 
@@ -1529,17 +1527,17 @@ function renderProcs() {
               </button>
               <input id="proc-img-${i}" type="file" accept="image/*" class="hidden" onchange="uploadProcImg(${i}, this)"/>
               <p class="text-[9px] text-warm-gray/30 uppercase tracking-wider">ou cole a URL abaixo</p>
-              <input value="${p.imagem||''}" oninput="localProcs[${i}].imagem=this.value;document.getElementById('proc-img-preview-${i}').src=this.value" placeholder="URL da imagem" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold"/>
+              <input value="${p.imagem||''}" oninput="setProcField(${i},'imagem',this.value);document.getElementById('proc-img-preview-${i}').src=this.value" placeholder="URL da imagem" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold"/>
             </div>
           </div>
         </div>
         <div>
           <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Título</label>
-          <input value="${p.titulo}" oninput="localProcs[${i}].titulo=this.value;renderProcTitle(${i},this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+          <input value="${p.titulo}" oninput="setProcField(${i},'titulo',this.value);renderProcTitle(${i},this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
         </div>
         <div>
           <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Descrição</label>
-          <textarea rows="3" oninput="localProcs[${i}].descricao=this.value" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none">${p.descricao}</textarea>
+          <textarea rows="3" oninput="setProcField(${i},'descricao',this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none">${p.descricao}</textarea>
         </div>
         <button onclick="saveProcs()" class="bg-rose-gold text-white px-6 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">
           Salvar
@@ -1553,6 +1551,10 @@ window.renderProcTitle = (i, val) => {
   const el = document.querySelector(`#proc-edit-${i}`)?.closest('.bg-white')?.querySelector('.text-navy-brand');
   if (el) el.textContent = val || 'Sem título';
 };
+
+window.setProcField    = (i, field, val) => { localProcs[i][field] = val; };
+window.setFeatureField = (i, field, val) => { localFeatures[i][field] = val; };
+window.setTestimField  = (i, field, val) => { localTestimonials[i][field] = val; };
 
 window.uploadProcImg = (i, input) => {
   const file = input.files[0]; if (!file) return;
@@ -1574,7 +1576,11 @@ window.uploadProcImg = (i, input) => {
   });
 };
 
-window.addProc = () => { localProcs.push({titulo:'',slug:'novo',imagem:'assets/treatment.png',descricao:''}); renderProcs(); };
+window.addProc = () => {
+  localProcs.push({titulo:'',slug:'novo',imagem:'assets/treatment.png',descricao:''});
+  renderProcs();
+  toggleProcEdit(localProcs.length - 1);
+};
 window.removeProc = i => { if(!confirm('Remover procedimento?')) return; localProcs.splice(i,1); renderProcs(); };
 window.saveProcs = async () => { await setDoc(doc(db,'content','procedures'),{items:localProcs}); showToast('Procedimentos salvos!'); };
 
@@ -1601,14 +1607,14 @@ function renderFeatures() {
       <div class="flex flex-col p-4 gap-3">
         <div class="flex items-center gap-3">
           <div class="w-10">
-            <input value="${f.icon}" oninput="localFeatures[${i}].icon=this.value" class="w-full border border-rose-light/30 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-rose-gold text-center" title="Ícone (Google Material Symbols)"/>
+            <input value="${f.icon}" oninput="setFeatureField(${i},'icon',this.value)" class="w-full border border-rose-light/30 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-rose-gold text-center" title="Ícone (Google Material Symbols)"/>
           </div>
           <div class="flex-1">
-            <input value="${f.title}" oninput="localFeatures[${i}].title=this.value" placeholder="Título" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold font-bold text-navy-brand uppercase tracking-wide"/>
+            <input value="${f.title}" oninput="setFeatureField(${i},'title',this.value)" placeholder="Título" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold font-bold text-navy-brand uppercase tracking-wide"/>
           </div>
         </div>
         <div>
-          <textarea rows="2" oninput="localFeatures[${i}].text=this.value" placeholder="Descrição" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold resize-none">${f.text}</textarea>
+          <textarea rows="2" oninput="setFeatureField(${i},'text',this.value)" placeholder="Descrição" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold resize-none">${f.text}</textarea>
         </div>
       </div>
     </div>`).join('');
@@ -1654,22 +1660,22 @@ function renderTestimonials() {
           </div>
           <div class="flex-1">
             <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">URL da imagem</label>
-            <input value="${t.image||''}" oninput="localTestimonials[${i}].image=this.value;document.getElementById('testim-img-preview-${i}').src=this.value||'https://via.placeholder.com/150'" placeholder="https://..." class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            <input value="${t.image||''}" oninput="setTestimField(${i},'image',this.value);document.getElementById('testim-img-preview-${i}').src=this.value||'https://via.placeholder.com/150'" placeholder="https://..." class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
           </div>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Nome</label>
-            <input value="${t.name}" oninput="localTestimonials[${i}].name=this.value;renderTestimonialTitle(${i},this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            <input value="${t.name}" oninput="setTestimField(${i},'name',this.value);renderTestimonialTitle(${i},this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
           </div>
           <div>
             <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Papel (Ex: Paciente)</label>
-            <input value="${t.role}" oninput="localTestimonials[${i}].role=this.value" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            <input value="${t.role}" oninput="setTestimField(${i},'role',this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
           </div>
         </div>
         <div>
           <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Depoimento</label>
-          <textarea rows="3" oninput="localTestimonials[${i}].text=this.value" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none">${t.text}</textarea>
+          <textarea rows="3" oninput="setTestimField(${i},'text',this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none">${t.text}</textarea>
         </div>
         <button onclick="saveTestimonials()" class="bg-rose-gold text-white px-6 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">
           Salvar
