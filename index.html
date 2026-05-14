@@ -282,30 +282,30 @@
 <div class="max-w-7xl mx-auto px-4 md:px-6 text-center">
 <h2 class="font-headline text-2xl md:text-4xl font-bold text-warm-gray uppercase tracking-tight mb-10 md:mb-14">Depoimentos</h2>
 <div id="testimonials-container" class="flex overflow-x-auto snap-x snap-mandatory gap-4 md:gap-6 pb-6 hide-scrollbar scroll-smooth md:grid md:grid-cols-3 md:overflow-x-visible md:snap-none">
-<div class="flex-none snap-center w-72 sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col justify-between text-left">
+<div class="flex-none snap-center w-72 sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col items-center text-center">
 <p class="text-warm-gray/80 mb-6 font-medium leading-relaxed italic text-sm">"Eu já era fã do trabalho que ela mostra no Instagram, fiquei mais fã ainda quando tomei a decisão de me consultar — foi a minha melhor escolha!"</p>
-<div class="flex items-center gap-3">
-<img src="https://randomuser.me/api/portraits/women/44.jpg" alt="Lucia Maria" class="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-rose-light"/>
+<div class="flex flex-col items-center gap-2 mt-auto">
+<img src="https://randomuser.me/api/portraits/women/44.jpg" alt="Lucia Maria" class="w-12 h-12 rounded-full object-cover ring-2 ring-rose-light"/>
 <div>
 <p class="font-bold text-xs uppercase">Lucia Maria</p>
 <p class="text-[10px] font-semibold text-rose-gold uppercase tracking-wider">Paciente</p>
 </div>
 </div>
 </div>
-<div class="flex-none snap-center w-72 sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col justify-between text-left">
+<div class="flex-none snap-center w-72 sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col items-center text-center">
 <p class="text-warm-gray/80 mb-6 font-medium leading-relaxed italic text-sm">"Profissional completa! Passa muita confiança em todas as explicações, além de ter uma mão levíssima! Voltarei sempre."</p>
-<div class="flex items-center gap-3">
-<img src="https://randomuser.me/api/portraits/women/65.jpg" alt="Mariana Alves" class="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-rose-light"/>
+<div class="flex flex-col items-center gap-2 mt-auto">
+<img src="https://randomuser.me/api/portraits/women/65.jpg" alt="Mariana Alves" class="w-12 h-12 rounded-full object-cover ring-2 ring-rose-light"/>
 <div>
 <p class="font-bold text-xs uppercase">Mariana Alves</p>
 <p class="text-[10px] font-semibold text-rose-gold uppercase tracking-wider">Paciente</p>
 </div>
 </div>
 </div>
-<div class="flex-none snap-center w-72 sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col justify-between text-left">
+<div class="flex-none snap-center w-72 sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col items-center text-center">
 <p class="text-warm-gray/80 mb-6 font-medium leading-relaxed italic text-sm">"Entende todas as expectativas, respeita a natureza do nosso rosto. Estou muito feliz com os resultados."</p>
-<div class="flex items-center gap-3">
-<img src="https://randomuser.me/api/portraits/women/23.jpg" alt="Luiza Santos" class="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-rose-light"/>
+<div class="flex flex-col items-center gap-2 mt-auto">
+<img src="https://randomuser.me/api/portraits/women/23.jpg" alt="Luiza Santos" class="w-12 h-12 rounded-full object-cover ring-2 ring-rose-light"/>
 <div>
 <p class="font-bold text-xs uppercase">Luiza Santos</p>
 <p class="text-[10px] font-semibold text-rose-gold uppercase tracking-wider">Paciente</p>
@@ -484,10 +484,10 @@
             const testimonialsContainer = document.getElementById('testimonials-container');
             if (testimonialsContainer) {
                 testimonialsContainer.innerHTML = testimonials.map(t => `
-                    <div class="flex-none snap-center w-72 sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col justify-between text-left">
+                    <div class="flex-none snap-center w-72 sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col items-center text-center">
                     <p class="text-warm-gray/80 mb-6 font-medium leading-relaxed italic text-sm">${t.text}</p>
-                    <div class="flex items-center gap-3">
-                    <img src="${t.image}" alt="${t.name}" class="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-rose-light"/>
+                    <div class="flex flex-col items-center gap-2 mt-auto">
+                    <img src="${t.image}" alt="${t.name}" class="w-12 h-12 rounded-full object-cover ring-2 ring-rose-light"/>
                     <div>
                     <p class="font-bold text-xs uppercase">${t.name}</p>
                     <p class="text-[10px] font-semibold text-rose-gold uppercase tracking-wider">${t.role}</p>

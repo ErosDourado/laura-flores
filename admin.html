@@ -1653,14 +1653,18 @@ function renderTestimonials() {
         </button>
       </div>
       <div id="testim-edit-${i}" class="hidden border-t border-rose-light/20 p-5 bg-stone-neutral/20 space-y-4">
-        <div class="flex gap-4">
-          <div class="w-16">
-            <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Foto (URL)</label>
-            <img src="${t.image||'https://via.placeholder.com/150'}" id="testim-img-preview-${i}" class="w-12 h-12 rounded-full object-cover mb-2 ring-2 ring-rose-light"/>
-          </div>
-          <div class="flex-1">
-            <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">URL da imagem</label>
-            <input value="${t.image||''}" oninput="setTestimField(${i},'image',this.value);document.getElementById('testim-img-preview-${i}').src=this.value||'https://via.placeholder.com/150'" placeholder="https://..." class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-2">Foto de perfil</label>
+          <div class="flex items-center gap-4">
+            <img src="${t.image||'https://via.placeholder.com/150'}" id="testim-img-preview-${i}" class="w-14 h-14 rounded-full object-cover flex-shrink-0 ring-2 ring-rose-light"/>
+            <div class="flex flex-col gap-2">
+              <button onclick="document.getElementById('testim-img-${i}').click()" class="flex items-center gap-1.5 border border-rose-light/50 text-warm-gray px-3 py-2 rounded-xl text-[11px] font-bold hover:border-rose-gold hover:text-rose-gold transition-colors cursor-pointer">
+                <span class="material-symbols-outlined text-sm">upload</span>Upload de foto
+              </button>
+              <input id="testim-img-${i}" type="file" accept="image/*" class="hidden" onchange="uploadTestimImg(${i}, this)"/>
+              <p class="text-[9px] text-warm-gray/30 uppercase tracking-wider">ou cole a URL abaixo</p>
+              <input value="${t.image||''}" oninput="setTestimField(${i},'image',this.value);document.getElementById('testim-img-preview-${i}').src=this.value||'https://via.placeholder.com/150'" placeholder="https://..." class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold"/>
+            </div>
           </div>
         </div>
         <div class="grid grid-cols-2 gap-4">
@@ -1689,7 +1693,31 @@ window.renderTestimonialTitle = (i, val) => {
   const el = document.querySelector(`#testim-edit-${i}`)?.closest('.bg-white')?.querySelector('.text-navy-brand');
   if (el) el.textContent = val || 'Sem nome';
 };
-window.addTestimonial = () => { localTestimonials.push({name:'',role:'Paciente',image:'',text:''}); renderTestimonials(); };
+
+window.uploadTestimImg = (i, input) => {
+  const file = input.files[0]; if (!file) return;
+  input.value = '';
+  openCropModal(file, 1/1, async croppedFile => {
+    showToast('Enviando foto...');
+    try {
+      const storageRef = sRef(storage, `testimonials/${i}_${Date.now()}_foto.jpg`);
+      await uploadBytes(storageRef, croppedFile);
+      const url = await getDownloadURL(storageRef);
+      localTestimonials[i].image = url;
+      document.getElementById(`testim-img-preview-${i}`).src = url;
+      const urlInput = document.querySelector(`#testim-edit-${i} input[placeholder="https://..."]`);
+      if (urlInput) urlInput.value = url;
+      showToast('Foto enviada! Salvando depoimento...');
+      await saveTestimonials();
+    } catch (e) { showToast('Erro no upload.'); console.error(e); }
+  });
+};
+
+window.addTestimonial = () => {
+  localTestimonials.push({name:'',role:'Paciente',image:'',text:''});
+  renderTestimonials();
+  toggleTestimonialEdit(localTestimonials.length - 1);
+};
 window.removeTestimonial = i => { if(!confirm('Remover depoimento?')) return; localTestimonials.splice(i,1); renderTestimonials(); };
 window.saveTestimonials = async () => { await setDoc(doc(db,'content','testimonials'),{items:localTestimonials}); showToast('Depoimentos salvos!'); };
 
