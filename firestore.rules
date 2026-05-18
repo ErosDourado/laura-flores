@@ -89,6 +89,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Versão do app — lido por todos os clientes para detectar atualizações do admin.
+    match /config/app {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Catch-all: bloquear o que não foi explicitamente liberado.
     match /{document=**} {
       allow read, write: if false;

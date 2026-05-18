@@ -1627,7 +1627,11 @@ window.addProc = () => {
   toggleProcEdit(localProcs.length - 1);
 };
 window.removeProc = i => { if(!confirm('Remover procedimento?')) return; localProcs.splice(i,1); renderProcs(); };
-window.saveProcs = async () => { await setDoc(doc(db,'content','procedures'),{items:localProcs}); showToast('Procedimentos salvos!'); };
+window.saveProcs = async () => {
+  await setDoc(doc(db,'content','procedures'),{items:localProcs});
+  await publishUpdate();
+  showToast('Procedimentos salvos!');
+};
 
 // ── FEED / FEATURES (Cards Diferenciais) ──────────────────
 let localFeatures = [];
@@ -1665,7 +1669,11 @@ function renderFeatures() {
     </div>`).join('');
 }
 
-window.saveFeatures = async () => { await setDoc(doc(db,'content','home_features'),{items:localFeatures}); showToast('Diferenciais salvos!'); };
+window.saveFeatures = async () => {
+  await setDoc(doc(db,'content','home_features'),{items:localFeatures});
+  await publishUpdate();
+  showToast('Diferenciais salvos!');
+};
 
 
 // ── FEED / TESTIMONIALS (Depoimentos) ─────────────────────
@@ -1765,7 +1773,11 @@ window.addTestimonial = () => {
   toggleTestimonialEdit(localTestimonials.length - 1);
 };
 window.removeTestimonial = i => { if(!confirm('Remover depoimento?')) return; localTestimonials.splice(i,1); renderTestimonials(); };
-window.saveTestimonials = async () => { await setDoc(doc(db,'content','testimonials'),{items:localTestimonials}); showToast('Depoimentos salvos!'); };
+window.saveTestimonials = async () => {
+  await setDoc(doc(db,'content','testimonials'),{items:localTestimonials});
+  await publishUpdate();
+  showToast('Depoimentos salvos!');
+};
 
 
 // ── PROMO CARD ────────────────────────────────────────
@@ -1822,6 +1834,7 @@ window.savePromoCard = async () => {
     } catch (e) { showToast('Erro no upload da imagem.'); return; }
   }
   await setDoc(doc(db,'content','promo_card'), { title, link, active, imageUrl });
+  await publishUpdate();
   showToast('Card promocional salvo!');
 };
 
@@ -1877,6 +1890,7 @@ window.saveAvailability = async () => {
     lunchEnd:   lunchEnabled ? document.getElementById('av-lunch-end').value   : null,
     blocked: blockedDates,
   });
+  await publishUpdate();
   showToast('Disponibilidade salva!');
 };
 
@@ -2552,6 +2566,28 @@ function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.style.opacity='1';
   setTimeout(()=>{ t.style.opacity='0'; }, 3000);
+}
+
+// ── PUBLISH UPDATE — notifica clientes de nova versão ──
+async function publishUpdate() {
+  try {
+    await setDoc(doc(db, 'config', 'app'), {
+      lastUpdated: Date.now().toString(),
+      updatedBy: auth.currentUser?.email ?? 'admin',
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  } catch (e) {
+    console.warn('[publishUpdate] Falha (não crítico):', e);
+  }
+}
+
+// ── SERVICE WORKER ────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw-firebase-cache.js', { scope: '/' })
+      .then(r => console.log('[SW] Registrado:', r.scope))
+      .catch(e => console.warn('[SW] Falha (não crítico):', e));
+  });
 }
 
 </script>

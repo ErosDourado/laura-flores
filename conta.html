@@ -117,7 +117,7 @@ tailwind.config = {
 import { initializeApp }      from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail }
                                from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, doc, setDoc, serverTimestamp }
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp }
                                from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 const FB = {
   apiKey: "AIzaSyAcZx6vU7bvWx3hzclQ98PfdqulqiQSvX8",
@@ -232,6 +232,37 @@ window.doRecover = async () => {
     btn.textContent = 'Enviar link'; btn.disabled = false;
   }
 };
+
+// ── SERVICE WORKER ────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw-firebase-cache.js', { scope: '/' })
+      .then(r => console.log('[SW] Registrado:', r.scope))
+      .catch(e => console.warn('[SW] Falha (não crítico):', e));
+  });
+}
+
+// ── VERIFICAÇÃO DE VERSÃO ─────────────────────────────
+(async () => {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'app'));
+    if (!snap.exists()) return;
+    const serverVersion = snap.data()?.lastUpdated;
+    if (!serverVersion) return;
+    const localVersion = localStorage.getItem('app_config_version');
+    if (serverVersion === localVersion) return;
+    localStorage.setItem('app_config_version', serverVersion);
+    try {
+      if (navigator.serviceWorker?.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_ALL_CACHES' });
+      } else if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch {}
+    setTimeout(() => window.location.reload(), 800);
+  } catch {}
+})();
 </script>
 </body>
 </html>
