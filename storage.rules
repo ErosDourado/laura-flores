@@ -7,15 +7,11 @@ service firebase.storage {
       return request.auth != null;
     }
     function isAdmin() {
+      let adminsDoc = firestore.get(/databases/(default)/documents/content/admins);
       return isSignedIn()
         && request.auth.token.email != null
-        && firestore.exists(/databases/(default)/documents/content/admins)
-        && (
-          request.auth.token.email
-            in firestore.get(/databases/(default)/documents/content/admins).data.emails
-          || request.auth.token.email.lower()
-            in firestore.get(/databases/(default)/documents/content/admins).data.emails
-        );
+        && adminsDoc != null
+        && adminsDoc.data.emails.hasAny([request.auth.token.email, request.auth.token.email.lower()]);
     }
     function isImage() {
       return request.resource.contentType.matches('image/.*');
