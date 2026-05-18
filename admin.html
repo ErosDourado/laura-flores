@@ -1617,7 +1617,7 @@ window.uploadProcImg = (i, input) => {
       if (urlInput) urlInput.value = url;
       showToast('Imagem enviada e link gerado! Salvando procedimentos...');
       await saveProcs();
-    } catch (e) { showToast('Erro no upload. Verifique o Storage.'); console.error(e); }
+    } catch (e) { showToast('Erro no upload: ' + (e?.code || e?.message || String(e))); console.error(e); }
   });
 };
 
@@ -1763,7 +1763,7 @@ window.uploadTestimImg = (i, input) => {
       if (urlInput) urlInput.value = url;
       showToast('Foto enviada! Salvando depoimento...');
       await saveTestimonials();
-    } catch (e) { showToast('Erro no upload.'); console.error(e); }
+    } catch (e) { showToast('Erro no upload: ' + (e?.code || e?.message || String(e))); console.error(e); }
   });
 };
 
@@ -1831,7 +1831,7 @@ window.savePromoCard = async () => {
       await uploadBytes(storageRef, promoImgFile);
       imageUrl = await getDownloadURL(storageRef);
       promoImgFile = null;
-    } catch (e) { showToast('Erro no upload da imagem.'); return; }
+    } catch (e) { showToast('Erro no upload: ' + (e?.code || e?.message || String(e))); console.error(e); return; }
   }
   await setDoc(doc(db,'content','promo_card'), { title, link, active, imageUrl });
   await publishUpdate();

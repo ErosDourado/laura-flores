@@ -1,7 +1,10 @@
 /* sw-firebase-cache.js — Cache de imagens Firebase + suporte a clear-cache */
-const SW_VERSION = '1.0.0';
+const SW_VERSION = '1.0.1';
 const IMAGE_CACHE_NAME = 'firebase-img-cache-v1';
 const FIREBASE_STORAGE_ORIGIN = 'https://firebasestorage.googleapis.com';
+
+// Ao instalar: assume controle imediatamente sem esperar fechar abas
+self.addEventListener('install', () => self.skipWaiting());
 
 // Ao ativar: remove caches de versões antigas e assume controle imediato
 self.addEventListener('activate', (event) => {
