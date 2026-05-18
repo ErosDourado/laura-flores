@@ -22,11 +22,15 @@ self.addEventListener('activate', (event) => {
 // Intercepta requisições de imagens do Firebase Storage
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  const url = request.url;
 
-  // Ignora tudo que não seja GET para o Firebase Storage
+  // Só intercepta GETs com alt=media — downloads reais de arquivo.
+  // Requests de metadados do SDK (getDownloadURL, uploadBytes, etc.)
+  // não têm alt=media e devem passar direto para não quebrar o SDK.
   if (
     request.method !== 'GET' ||
-    !request.url.startsWith(FIREBASE_STORAGE_ORIGIN)
+    !url.startsWith(FIREBASE_STORAGE_ORIGIN) ||
+    !url.includes('alt=media')
   ) {
     return;
   }
