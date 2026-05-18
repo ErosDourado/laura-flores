@@ -7,15 +7,14 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
-    function userEmail() {
-      return request.auth.token.email != null
-        ? request.auth.token.email.lower()
-        : '';
-    }
     function isAdmin() {
       return isSignedIn()
+        && request.auth.token.email != null
         && exists(/databases/$(database)/documents/content/admins)
-        && (userEmail() in get(/databases/$(database)/documents/content/admins).data.emails.map(e, e.lower()));
+        && (
+          request.auth.token.email in get(/databases/$(database)/documents/content/admins).data.emails
+          || request.auth.token.email.lower() in get(/databases/$(database)/documents/content/admins).data.emails
+        );
     }
 
     // Conteúdo público do site (procedures, features, testimonials, promo_card,

@@ -10,8 +10,12 @@ service firebase.storage {
       return isSignedIn()
         && request.auth.token.email != null
         && firestore.exists(/databases/(default)/documents/content/admins)
-        && (request.auth.token.email.lower()
-            in firestore.get(/databases/(default)/documents/content/admins).data.emails.map(e, e.lower()));
+        && (
+          request.auth.token.email
+            in firestore.get(/databases/(default)/documents/content/admins).data.emails
+          || request.auth.token.email.lower()
+            in firestore.get(/databases/(default)/documents/content/admins).data.emails
+        );
     }
     function isImage() {
       return request.resource.contentType.matches('image/.*');
