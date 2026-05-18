@@ -1064,7 +1064,7 @@ import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.12.2/fire
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail }
                             from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
-         setDoc, getDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, where }
+         setDoc, getDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, where, runTransaction }
                             from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL }
                             from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
@@ -1084,14 +1084,19 @@ const storage = getStorage(app);
 
 // ── AUTH ─────────────────────────────────────────────
 window.doLogin = async () => {
-  const email = document.getElementById('login-email').value.trim();
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
   const pass  = document.getElementById('login-password').value;
   const err   = document.getElementById('login-error');
   const btn   = document.getElementById('login-btn');
   btn.textContent = 'Entrando...'; btn.disabled = true; err.classList.add('hidden');
   err.className = 'text-red-500 text-xs text-center font-semibold';
   try { await signInWithEmailAndPassword(auth, email, pass); }
-  catch { err.textContent = 'E-mail ou senha incorretos.'; err.classList.remove('hidden'); btn.textContent = 'Entrar'; btn.disabled = false; }
+  catch (e) {
+    if (e.code === 'auth/network-request-failed') err.textContent = 'Sem conexão. Verifique sua internet.';
+    else if (e.code === 'auth/too-many-requests') err.textContent = 'Muitas tentativas. Aguarde alguns minutos.';
+    else err.textContent = 'E-mail ou senha incorretos.';
+    err.classList.remove('hidden'); btn.textContent = 'Entrar'; btn.disabled = false;
+  }
 };
 
 window.toggleAdminRecover = () => {
@@ -1104,7 +1109,7 @@ window.toggleAdminRecover = () => {
 };
 
 window.doRecoverAdmin = async () => {
-  const email = document.getElementById('login-email').value.trim();
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
   const err   = document.getElementById('login-error');
   const btn   = document.getElementById('recover-btn');
   err.classList.add('hidden');
@@ -1115,13 +1120,13 @@ window.doRecoverAdmin = async () => {
   btn.textContent = 'Enviando...'; btn.disabled = true;
   try {
     await sendPasswordResetEmail(auth, email);
-    err.textContent = 'E-mail enviado! Verifique sua caixa de entrada e spam.';
-    err.className = 'text-green-600 text-xs text-center font-semibold';
-    err.classList.remove('hidden');
-    btn.textContent = 'Enviar E-mail de Recuperação'; btn.disabled = false;
   } catch (e) {
-    err.textContent = 'Erro ao enviar. Verifique o e-mail.';
-    err.className = 'text-red-500 text-xs text-center font-semibold';
+    if (e.code !== 'auth/user-not-found' && e.code !== 'auth/invalid-email') {
+      console.warn('[admin/recover] erro inesperado:', e.code);
+    }
+  } finally {
+    err.textContent = 'Se este e-mail estiver cadastrado, enviamos o link. Verifique sua caixa de entrada e spam.';
+    err.className = 'text-green-600 text-xs text-center font-semibold';
     err.classList.remove('hidden');
     btn.textContent = 'Enviar E-mail de Recuperação'; btn.disabled = false;
   }
@@ -1133,7 +1138,11 @@ onAuthStateChanged(auth, async user => {
     let isAdmin = false;
     try {
       const snap = await getDoc(doc(db, 'content', 'admins'));
-      if (snap.exists()) isAdmin = (snap.data().emails || []).includes(user.email);
+      if (snap.exists()) {
+        const userEmail = (user.email || '').trim().toLowerCase();
+        const admins = (snap.data().emails || []).map(e => (e || '').trim().toLowerCase());
+        isAdmin = admins.includes(userEmail);
+      }
     } catch (e) {
       console.warn("Erro ao verificar admin:", e);
     }
@@ -1166,13 +1175,27 @@ window.switchTab = tab => {
 // ── SHARED ───────────────────────────────────────────
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
+// Escape HTML entities to prevent XSS when interpolating Firestore data into innerHTML.
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Validate image uploads (type + size). Returns true if OK, otherwise shows toast and returns false.
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
+function validImage(file) {
+  if (!file) return false;
+  if (!file.type || !file.type.startsWith('image/')) { showToast('Arquivo precisa ser uma imagem.'); return false; }
+  if (file.size > MAX_UPLOAD_BYTES) { showToast('Imagem muito grande (máx. 5 MB).'); return false; }
+  return true;
+}
+
 // ── APPOINTMENTS ─────────────────────────────────────
 let allAppts = [], currentFilter = 'all', selectedApptDate = null;
 let apptCalYear, apptCalMonth;
+let unsubAppts = null;
 
 function loadAppointments() {
   const now = new Date(); apptCalYear = now.getFullYear(); apptCalMonth = now.getMonth();
-  onSnapshot(query(collection(db,'appointments'), orderBy('createdAt','desc')), snap => {
+  if (typeof unsubAppts === 'function') unsubAppts();
+  unsubAppts = onSnapshot(query(collection(db,'appointments'), orderBy('createdAt','desc')), snap => {
     allAppts = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     buildApptCalendar();
     renderAppts();
@@ -1191,8 +1214,13 @@ function buildApptCalendar() {
     if (!a.date) return;
     const parts = a.date.split('/');
     if (parts.length !== 3) return;
-    if (parseInt(parts[2]) === apptCalYear && parseInt(parts[1]) === apptCalMonth+1)
-      apptCounts[parseInt(parts[0])] = (apptCounts[parseInt(parts[0])] || 0) + 1;
+    const dia = parseInt(parts[0], 10);
+    const mes = parseInt(parts[1], 10);
+    const ano = parseInt(parts[2], 10);
+    if (!Number.isFinite(dia) || !Number.isFinite(mes) || !Number.isFinite(ano)) return;
+    if (ano === apptCalYear && mes === apptCalMonth + 1) {
+      apptCounts[dia] = (apptCounts[dia] || 0) + 1;
+    }
   });
   let html = '';
   for (let i=0;i<firstDay;i++) html += '<div class="appt-cal-day empty h-9"></div>';
@@ -1234,35 +1262,45 @@ function renderAppts() {
   list.innerHTML = data.map(a => {
     const digits=(a.phone||'').replace(/\D/g,'');
     const wa=digits?`55${digits}`:'';
-    
+
     return `<div class="bg-white rounded-2xl shadow-sm border border-rose-light/20 overflow-hidden mb-4">
-      <div class="flex items-center gap-4 p-5 cursor-pointer hover:bg-stone-neutral/50 transition-colors" onclick="toggleApptCard('${a.id}')">
+      <div class="flex items-center gap-4 p-5 cursor-pointer hover:bg-stone-neutral/50 transition-colors" onclick="toggleApptCard('${esc(a.id)}')">
         <div class="flex-1 min-w-0">
-          <p class="font-bold text-sm text-navy-brand truncate">${a.clientName||'—'}</p>
-          <p class="text-xs text-warm-gray/50 mt-0.5">${a.serviceName} · ${a.date} às ${a.time}</p>
+          <p class="font-bold text-sm text-navy-brand truncate">${esc(a.clientName)||'—'}</p>
+          <p class="text-xs text-warm-gray/50 mt-0.5">${esc(a.serviceName)} · ${esc(a.date)} às ${esc(a.time)}</p>
         </div>
-        <span class="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full ${cls[a.status]||'bg-gray-100 text-gray-500'} flex-shrink-0">${labels[a.status]||a.status}</span>
-        <span class="material-symbols-outlined text-warm-gray/30 transition-transform duration-300" id="icon-${a.id}">expand_more</span>
+        <span class="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full ${cls[a.status]||'bg-gray-100 text-gray-500'} flex-shrink-0">${labels[a.status]||esc(a.status)}</span>
+        <span class="material-symbols-outlined text-warm-gray/30 transition-transform duration-300" id="icon-${esc(a.id)}">expand_more</span>
       </div>
-      <div id="card-${a.id}" class="hidden border-t border-rose-light/20 bg-stone-neutral/20 p-5 space-y-4">
+      <div id="card-${esc(a.id)}" class="hidden border-t border-rose-light/20 bg-stone-neutral/20 p-5 space-y-4">
         <div class="grid grid-cols-2 gap-4 text-sm">
-          <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">Telefone</p><p class="font-semibold">${a.phone||'—'}</p></div>
-          <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">E-mail</p><p class="font-semibold text-xs truncate">${a.email||'—'}</p></div>
+          <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">Telefone</p><p class="font-semibold">${esc(a.phone)||'—'}</p></div>
+          <div><p class="text-[9px] uppercase tracking-widest text-warm-gray/35 font-bold mb-0.5">E-mail</p><p class="font-semibold text-xs truncate">${esc(a.email)||'—'}</p></div>
         </div>
         <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-rose-light/20">
-          ${wa ? `<button onclick="openWaTemplatesModal('${a.clientName}', '${wa}', '${a.serviceName}', '${a.date}', '${a.time}', '${a.status}')" class="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition-colors cursor-pointer"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>Mensagem</button>` : ''}
-          <select onchange="updateStatus('${a.id}',this.value)" class="border border-rose-light/40 rounded-xl px-2 py-2 text-[11px] font-bold focus:outline-none cursor-pointer bg-white">
+          ${wa ? `<button onclick="openWaTemplatesModalById('${esc(a.id)}')" class="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition-colors cursor-pointer"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>Mensagem</button>` : ''}
+          <select onchange="updateStatus('${esc(a.id)}',this.value)" class="border border-rose-light/40 rounded-xl px-2 py-2 text-[11px] font-bold focus:outline-none cursor-pointer bg-white">
             <option value="pending"   ${a.status==='pending'   ?'selected':''}>Pendente</option>
             <option value="confirmed" ${a.status==='confirmed' ?'selected':''}>Confirmado</option>
             <option value="concluded" ${a.status==='concluded' ?'selected':''}>Concluído</option>
             <option value="cancelled" ${a.status==='cancelled' ?'selected':''}>Cancelado</option>
           </select>
-          <button onclick="delAppt('${a.id}')" class="text-warm-gray/25 hover:text-red-400 transition-colors cursor-pointer p-1"><span class="material-symbols-outlined text-xl">delete</span></button>
+          <button onclick="delAppt('${esc(a.id)}')" class="text-warm-gray/25 hover:text-red-400 transition-colors cursor-pointer p-1"><span class="material-symbols-outlined text-xl">delete</span></button>
         </div>
       </div>
     </div>`;
   }).join('');
 }
+
+// Wrapper que busca o agendamento em allAppts e chama openWaTemplatesModal com dados confiáveis.
+window.openWaTemplatesModalById = id => {
+  const a = allAppts.find(x => x.id === id);
+  if (!a) return;
+  const digits = (a.phone || '').replace(/\D/g, '');
+  const wa = digits ? `55${digits}` : '';
+  if (!wa) return;
+  window.openWaTemplatesModal(a.clientName || '', wa, a.serviceName || '', a.date || '', a.time || '', a.status || '');
+};
 window.filterAppt = filter => {
   currentFilter = filter;
   document.querySelectorAll('.filter-btn').forEach(b => { b.classList.remove('border-rose-gold','text-rose-gold'); b.classList.add('border-gray-200','text-warm-gray/60'); });
@@ -1284,18 +1322,22 @@ window.updateStatus = async (id, status) => {
     const a = allAppts.find(x => x.id === id);
     if (a) {
       try {
-        // Buscar TODOS da fila de espera que querem vaga anterior
-        const snap = await getDocs(collection(db,'fila_espera'));
-        const matches = snap.docs.map(d => ({id: d.id, ...d.data()}))
-          .filter(m => m.wantEarlier || m.date === a.date || m.time === a.time);
+        // Buscar fila de espera filtrando pela data primeiro (reduz leituras); wantEarlier vem em paralelo
+        const [snapDate, snapEarlier] = await Promise.all([
+          getDocs(query(collection(db,'fila_espera'), where('dateLimit','==', a.date))).catch(() => ({ docs: [] })),
+          getDocs(query(collection(db,'fila_espera'), where('wantEarlier','==', true))).catch(() => ({ docs: [] })),
+        ]);
+        const seen = new Set();
+        const matches = [...snapDate.docs, ...snapEarlier.docs]
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(m => { if (seen.has(m.id)) return false; seen.add(m.id); return true; });
         if (matches.length > 0) {
           const container = document.getElementById('waitlist-matches-container');
-          // Carregar template de mensagem customizado
           let msgTemplate = `Olá {nome}, um horário de {servico} no dia {data} às {hora} acaba de liberar! Deseja confirmar?`;
           try {
             const msgSnap = await getDoc(doc(db,'content','messages'));
             if (msgSnap.exists() && msgSnap.data().waitlist) msgTemplate = msgSnap.data().waitlist;
-          } catch {}
+          } catch (e) { console.warn('[admin/waitlist] template indisponível:', e?.code); }
           container.innerHTML = matches.map(m => {
             const digits = (m.phone||'').replace(/\D/g,'');
             const wa = digits ? `55${digits}` : '';
@@ -1304,8 +1346,8 @@ window.updateStatus = async (id, status) => {
             return `
               <div class="p-3 border border-rose-light/40 rounded-xl bg-white flex flex-col gap-2">
                 <div>
-                  <p class="font-bold text-navy-brand">${m.clientName}</p>
-                  <p class="text-[11px] text-warm-gray/60">Quer vaga antes · ${m.phone || ''}</p>
+                  <p class="font-bold text-navy-brand">${esc(m.clientName)}</p>
+                  <p class="text-[11px] text-warm-gray/60">Quer vaga antes · ${esc(m.phone || '')}</p>
                 </div>
                 ${wa ? `<a href="https://wa.me/${wa}?text=${msg}" target="_blank" class="flex justify-center items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition-colors cursor-pointer w-full"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>Avisar no WhatsApp</a>` : ''}
               </div>
@@ -1313,7 +1355,7 @@ window.updateStatus = async (id, status) => {
           }).join('');
           document.getElementById('waitlist-modal').classList.remove('hidden');
         }
-      } catch (e) { console.error('Erro ao buscar fila de espera', e); }
+      } catch (e) { console.error('[admin/waitlist] erro:', e); }
     }
   }
 };
@@ -1350,10 +1392,10 @@ window.openWaitlistPanel = async () => {
         <div class="p-3 border border-rose-light/40 rounded-xl bg-white flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <div>
-              <p class="font-bold text-navy-brand">${m.clientName}</p>
-              <p class="text-[11px] text-warm-gray/60">${m.serviceName || ''} · ${m.phone || ''}</p>
+              <p class="font-bold text-navy-brand">${esc(m.clientName)}</p>
+              <p class="text-[11px] text-warm-gray/60">${esc(m.serviceName || '')} · ${esc(m.phone || '')}</p>
             </div>
-            <button onclick="removeFromWaitlist('${m.id}')" class="text-warm-gray/30 hover:text-red-400 transition-colors cursor-pointer p-1" title="Remover da fila"><span class="material-symbols-outlined text-lg">close</span></button>
+            <button onclick="removeFromWaitlist('${esc(m.id)}')" class="text-warm-gray/30 hover:text-red-400 transition-colors cursor-pointer p-1" title="Remover da fila"><span class="material-symbols-outlined text-lg">close</span></button>
           </div>
           ${wa ? `<a href="https://wa.me/${wa}?text=${msg}" target="_blank" class="flex justify-center items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition-colors cursor-pointer w-full"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>Avisar no WhatsApp</a>` : ''}
         </div>
@@ -1403,9 +1445,9 @@ window.openWaTemplatesModal = async (clientName, waPhone, serviceName, date, tim
   container.innerHTML = templates.map(t => {
     const encoded = encodeURIComponent(t.msg);
     return `
-      <a href="https://wa.me/${waPhone}?text=${encoded}" target="_blank" onclick="closeWaTemplatesModal()" class="block p-3 rounded-xl border border-rose-light/40 hover:border-green-500 hover:bg-green-50 transition-all cursor-pointer">
-        <p class="font-bold text-navy-brand text-sm mb-1 flex justify-between">${t.name} <span class="material-symbols-outlined text-green-500 text-sm">send</span></p>
-        <p class="text-xs text-warm-gray/60 line-clamp-2">${t.msg}</p>
+      <a href="https://wa.me/${encodeURIComponent(waPhone)}?text=${encoded}" target="_blank" onclick="closeWaTemplatesModal()" class="block p-3 rounded-xl border border-rose-light/40 hover:border-green-500 hover:bg-green-50 transition-all cursor-pointer">
+        <p class="font-bold text-navy-brand text-sm mb-1 flex justify-between">${esc(t.name)} <span class="material-symbols-outlined text-green-500 text-sm">send</span></p>
+        <p class="text-xs text-warm-gray/60 line-clamp-2">${esc(t.msg)}</p>
       </a>
     `;
   }).join('');
@@ -1450,8 +1492,10 @@ window.saveMessages = async () => {
 
 // ── SERVICES ─────────────────────────────────────────
 let allSvcs = [];
+let unsubSvcs = null;
 function loadServices() {
-  onSnapshot(query(collection(db,'services'), orderBy('order')), snap => {
+  if (typeof unsubSvcs === 'function') unsubSvcs();
+  unsubSvcs = onSnapshot(query(collection(db,'services'), orderBy('order')), snap => {
     allSvcs = snap.docs.map(d => ({id:d.id,...d.data()}));
     renderSvcs();
   });
@@ -1462,13 +1506,13 @@ function renderSvcs() {
   list.innerHTML = allSvcs.map(s => `
     <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20 flex flex-col gap-3">
       <div class="flex items-start justify-between gap-2">
-        <h3 class="font-bold text-sm uppercase tracking-wide text-navy-brand">${s.name}</h3>
+        <h3 class="font-bold text-sm uppercase tracking-wide text-navy-brand">${esc(s.name)}</h3>
         <span class="text-[9px] font-bold px-2 py-1 rounded-full ${s.active?'bg-green-100 text-green-700':'bg-gray-100 text-gray-400'}">${s.active?'Ativo':'Inativo'}</span>
       </div>
-      <p class="text-xs text-warm-gray/60 leading-relaxed flex-1">${s.description||'—'}</p>
+      <p class="text-xs text-warm-gray/60 leading-relaxed flex-1">${esc(s.description)||'—'}</p>
       <div class="flex gap-2 pt-2 border-t border-rose-light/20">
-        <button onclick="toggleSvc('${s.id}',${s.active})" class="flex-1 text-[11px] py-2 rounded-xl border font-bold transition-colors cursor-pointer ${s.active?'border-gray-200 text-warm-gray/50 hover:border-red-200 hover:text-red-400':'border-green-200 text-green-600 hover:bg-green-50'}">${s.active?'Desativar':'Ativar'}</button>
-        <button onclick="openSvcModal('${s.id}')" class="flex-1 text-[11px] py-2 rounded-xl bg-stone-neutral text-warm-gray font-bold hover:bg-rose-light/30 transition-colors cursor-pointer">Editar</button>
+        <button onclick="toggleSvc('${esc(s.id)}',${!!s.active})" class="flex-1 text-[11px] py-2 rounded-xl border font-bold transition-colors cursor-pointer ${s.active?'border-gray-200 text-warm-gray/50 hover:border-red-200 hover:text-red-400':'border-green-200 text-green-600 hover:bg-green-50'}">${s.active?'Desativar':'Ativar'}</button>
+        <button onclick="openSvcModal('${esc(s.id)}')" class="flex-1 text-[11px] py-2 rounded-xl bg-stone-neutral text-warm-gray font-bold hover:bg-rose-light/30 transition-colors cursor-pointer">Editar</button>
       </div>
     </div>`).join('');
 }
@@ -1508,7 +1552,7 @@ function renderProcs() {
     <div class="bg-white rounded-xl border border-rose-light/20 shadow-sm overflow-hidden">
       <div class="flex items-center px-5 py-3.5 gap-3 hover:bg-stone-neutral/50 transition-colors">
         <span class="text-[9px] font-bold text-warm-gray/25 uppercase tracking-widest w-14 flex-shrink-0">Proc. ${String(i+1).padStart(2,'0')}</span>
-        <span class="font-bold text-sm text-navy-brand flex-1 truncate uppercase">${p.titulo||'Sem título'}</span>
+        <span class="font-bold text-sm text-navy-brand flex-1 truncate uppercase">${esc(p.titulo)||'Sem título'}</span>
         <button onclick="toggleProcEdit(${i})" class="text-warm-gray/30 hover:text-rose-gold transition-colors flex-shrink-0 cursor-pointer p-1">
           <span class="material-symbols-outlined text-base">edit</span>
         </button>
@@ -1520,24 +1564,24 @@ function renderProcs() {
         <div>
           <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-2">Imagem</label>
           <div class="flex items-center gap-4">
-            <img id="proc-img-preview-${i}" src="${p.imagem||'assets/treatment.png'}" class="w-24 h-20 object-cover rounded-xl border border-rose-light/30 flex-shrink-0"/>
+            <img id="proc-img-preview-${i}" src="${esc(p.imagem)||'assets/treatment.png'}" class="w-24 h-20 object-cover rounded-xl border border-rose-light/30 flex-shrink-0"/>
             <div class="flex flex-col gap-2">
               <button onclick="document.getElementById('proc-img-${i}').click()" class="flex items-center gap-1.5 border border-rose-light/50 text-warm-gray px-3 py-2 rounded-xl text-[11px] font-bold hover:border-rose-gold hover:text-rose-gold transition-colors cursor-pointer">
                 <span class="material-symbols-outlined text-sm">upload</span>Upload de imagem
               </button>
               <input id="proc-img-${i}" type="file" accept="image/*" class="hidden" onchange="uploadProcImg(${i}, this)"/>
               <p class="text-[9px] text-warm-gray/30 uppercase tracking-wider">ou cole a URL abaixo</p>
-              <input value="${p.imagem||''}" oninput="setProcField(${i},'imagem',this.value);document.getElementById('proc-img-preview-${i}').src=this.value" placeholder="URL da imagem" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold"/>
+              <input value="${esc(p.imagem||'')}" oninput="setProcField(${i},'imagem',this.value);document.getElementById('proc-img-preview-${i}').src=this.value" placeholder="URL da imagem" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold"/>
             </div>
           </div>
         </div>
         <div>
           <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Título</label>
-          <input value="${p.titulo}" oninput="setProcField(${i},'titulo',this.value);renderProcTitle(${i},this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+          <input value="${esc(p.titulo)}" oninput="setProcField(${i},'titulo',this.value);renderProcTitle(${i},this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
         </div>
         <div>
           <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Descrição</label>
-          <textarea rows="3" oninput="setProcField(${i},'descricao',this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none">${p.descricao}</textarea>
+          <textarea rows="3" oninput="setProcField(${i},'descricao',this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none">${esc(p.descricao)}</textarea>
         </div>
         <button onclick="saveProcs()" class="bg-rose-gold text-white px-6 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">
           Salvar
@@ -1559,6 +1603,7 @@ window.setTestimField  = (i, field, val) => { localTestimonials[i][field] = val;
 window.uploadProcImg = (i, input) => {
   const file = input.files[0]; if (!file) return;
   input.value = '';
+  if (!validImage(file)) return;
   // Procedure ratio: 4:3 (card image area)
   openCropModal(file, 4/3, async croppedFile => {
     showToast('Enviando imagem...');
@@ -1607,14 +1652,14 @@ function renderFeatures() {
       <div class="flex flex-col p-4 gap-3">
         <div class="flex items-center gap-3">
           <div class="w-10">
-            <input value="${f.icon}" oninput="setFeatureField(${i},'icon',this.value)" class="w-full border border-rose-light/30 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-rose-gold text-center" title="Ícone (Google Material Symbols)"/>
+            <input value="${esc(f.icon)}" oninput="setFeatureField(${i},'icon',this.value)" class="w-full border border-rose-light/30 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-rose-gold text-center" title="Ícone (Google Material Symbols)"/>
           </div>
           <div class="flex-1">
-            <input value="${f.title}" oninput="setFeatureField(${i},'title',this.value)" placeholder="Título" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold font-bold text-navy-brand uppercase tracking-wide"/>
+            <input value="${esc(f.title)}" oninput="setFeatureField(${i},'title',this.value)" placeholder="Título" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-rose-gold font-bold text-navy-brand uppercase tracking-wide"/>
           </div>
         </div>
         <div>
-          <textarea rows="2" oninput="setFeatureField(${i},'text',this.value)" placeholder="Descrição" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold resize-none">${f.text}</textarea>
+          <textarea rows="2" oninput="setFeatureField(${i},'text',this.value)" placeholder="Descrição" class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold resize-none">${esc(f.text)}</textarea>
         </div>
       </div>
     </div>`).join('');
@@ -1644,7 +1689,7 @@ function renderTestimonials() {
     <div class="bg-white rounded-xl border border-rose-light/20 shadow-sm overflow-hidden mb-2">
       <div class="flex items-center px-5 py-3.5 gap-3 hover:bg-stone-neutral/50 transition-colors">
         <span class="text-[9px] font-bold text-warm-gray/25 uppercase tracking-widest w-16 flex-shrink-0">Depo. ${String(i+1).padStart(2,'0')}</span>
-        <span class="font-bold text-sm text-navy-brand flex-1 truncate uppercase">${t.name||'Sem nome'}</span>
+        <span class="font-bold text-sm text-navy-brand flex-1 truncate uppercase">${esc(t.name)||'Sem nome'}</span>
         <button onclick="toggleTestimonialEdit(${i})" class="text-warm-gray/30 hover:text-rose-gold transition-colors flex-shrink-0 cursor-pointer p-1">
           <span class="material-symbols-outlined text-base">edit</span>
         </button>
@@ -1656,30 +1701,30 @@ function renderTestimonials() {
         <div>
           <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-2">Foto de perfil</label>
           <div class="flex items-center gap-4">
-            <img src="${t.image||'https://via.placeholder.com/150'}" id="testim-img-preview-${i}" class="w-14 h-14 rounded-full object-cover flex-shrink-0 ring-2 ring-rose-light"/>
+            <img src="${esc(t.image)||'https://via.placeholder.com/150'}" id="testim-img-preview-${i}" class="w-14 h-14 rounded-full object-cover flex-shrink-0 ring-2 ring-rose-light"/>
             <div class="flex flex-col gap-2">
               <button onclick="document.getElementById('testim-img-${i}').click()" class="flex items-center gap-1.5 border border-rose-light/50 text-warm-gray px-3 py-2 rounded-xl text-[11px] font-bold hover:border-rose-gold hover:text-rose-gold transition-colors cursor-pointer">
                 <span class="material-symbols-outlined text-sm">upload</span>Upload de foto
               </button>
               <input id="testim-img-${i}" type="file" accept="image/*" class="hidden" onchange="uploadTestimImg(${i}, this)"/>
               <p class="text-[9px] text-warm-gray/30 uppercase tracking-wider">ou cole a URL abaixo</p>
-              <input value="${t.image||''}" oninput="setTestimField(${i},'image',this.value);document.getElementById('testim-img-preview-${i}').src=this.value||'https://via.placeholder.com/150'" placeholder="https://..." class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold"/>
+              <input value="${esc(t.image||'')}" oninput="setTestimField(${i},'image',this.value);document.getElementById('testim-img-preview-${i}').src=this.value||'https://via.placeholder.com/150'" placeholder="https://..." class="w-full border border-rose-light/30 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-rose-gold"/>
             </div>
           </div>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Nome</label>
-            <input value="${t.name}" oninput="setTestimField(${i},'name',this.value);renderTestimonialTitle(${i},this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            <input value="${esc(t.name)}" oninput="setTestimField(${i},'name',this.value);renderTestimonialTitle(${i},this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
           </div>
           <div>
             <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Papel (Ex: Paciente)</label>
-            <input value="${t.role}" oninput="setTestimField(${i},'role',this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
+            <input value="${esc(t.role)}" oninput="setTestimField(${i},'role',this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold"/>
           </div>
         </div>
         <div>
           <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/50 mb-1.5">Depoimento</label>
-          <textarea rows="3" oninput="setTestimField(${i},'text',this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none">${t.text}</textarea>
+          <textarea rows="3" oninput="setTestimField(${i},'text',this.value)" class="w-full border border-rose-light/30 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-rose-gold resize-none">${esc(t.text)}</textarea>
         </div>
         <button onclick="saveTestimonials()" class="bg-rose-gold text-white px-6 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">
           Salvar
@@ -1697,6 +1742,7 @@ window.renderTestimonialTitle = (i, val) => {
 window.uploadTestimImg = (i, input) => {
   const file = input.files[0]; if (!file) return;
   input.value = '';
+  if (!validImage(file)) return;
   openCropModal(file, 1/1, async croppedFile => {
     showToast('Enviando foto...');
     try {
@@ -1744,6 +1790,7 @@ async function loadPromoCard() {
 window.handlePromoImg = input => {
   const file = input.files[0]; if (!file) return;
   input.value = '';
+  if (!validImage(file)) return;
   // Promo card ratio: 3:1 (wide banner)
   openCropModal(file, 3/1, async croppedFile => {
     promoImgFile = croppedFile;
@@ -1922,14 +1969,12 @@ async function loadClients() {
   const list = document.getElementById('clients-list');
   if (!list) return;
   try {
-    const snapUsers = await getDocs(collection(db, 'users'));
+    const [snapUsers, snapClientes] = await Promise.all([
+      getDocs(collection(db, 'users')),
+      getDocs(collection(db, 'clientes')).catch(e => { console.warn('[admin/loadClients] clientes:', e?.code); return { docs: [] }; }),
+    ]);
     const usersData = snapUsers.docs.map(d => ({ uid: d.id, ...d.data() })).filter(u => u.name || u.email);
-    
-    let manualClientes = [];
-    try {
-      const snapClientes = await getDocs(collection(db, 'clientes'));
-      manualClientes = snapClientes.docs.map(d => ({ uid: d.id, ...d.data(), isManual: true })).filter(u => u.name);
-    } catch(e) { console.warn("Coleção clientes vazia ou inacessível."); }
+    const manualClientes = snapClientes.docs.map(d => ({ uid: d.id, ...d.data(), isManual: true })).filter(u => u.name);
 
     clientsData = [...usersData, ...manualClientes].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
     
@@ -1950,6 +1995,7 @@ window.renderClientsList = (data) => {
   if (!data.length) { list.innerHTML = '<div class="text-center py-16 text-warm-gray/30 text-sm">Nenhum cliente encontrado.</div>'; return; }
   list.innerHTML = data.map(u => {
     const idx = clientsData.findIndex(c => c.uid === u.uid);
+    const contact = u.phone ? esc(u.phone) + (u.email ? ' · ' + esc(u.email) : '') : (esc(u.email) || '—');
     return `
       <div onclick="openClientProfile(${idx})"
         class="bg-white rounded-2xl p-4 shadow-sm border border-rose-light/20 flex items-center gap-4 hover:border-rose-gold/50 hover:shadow-md transition-all cursor-pointer">
@@ -1957,13 +2003,13 @@ window.renderClientsList = (data) => {
           <span class="material-symbols-outlined text-rose-gold text-xl">person</span>
         </div>
         <div class="flex-1 min-w-0">
-          <p class="font-bold text-sm text-navy-brand truncate">${u.name || '—'} ${u.isManual ? '<span class="text-[9px] bg-stone-neutral px-1.5 py-0.5 rounded text-warm-gray/50 ml-1">Manual</span>' : ''}</p>
-          <p class="text-xs text-warm-gray/50 mt-0.5">${u.phone ? u.phone + (u.email ? ' · ' + u.email : '') : (u.email || '—')}</p>
+          <p class="font-bold text-sm text-navy-brand truncate">${esc(u.name) || '—'} ${u.isManual ? '<span class="text-[9px] bg-stone-neutral px-1.5 py-0.5 rounded text-warm-gray/50 ml-1">Manual</span>' : ''}</p>
+          <p class="text-xs text-warm-gray/50 mt-0.5">${contact}</p>
         </div>
         ${u.isManual ? `
-          <button onclick="event.stopPropagation(); editManualClient('${u.uid}')" class="text-warm-gray/30 hover:text-rose-gold p-1.5 transition-colors cursor-pointer" title="Editar"><span class="material-symbols-outlined text-lg">edit</span></button>
+          <button onclick="event.stopPropagation(); editManualClient('${esc(u.uid)}')" class="text-warm-gray/30 hover:text-rose-gold p-1.5 transition-colors cursor-pointer" title="Editar"><span class="material-symbols-outlined text-lg">edit</span></button>
         ` : ''}
-        <button onclick="event.stopPropagation(); deleteClient('${u.uid}')" class="text-warm-gray/30 hover:text-red-400 p-1.5 transition-colors cursor-pointer" title="Excluir"><span class="material-symbols-outlined text-lg">delete</span></button>
+        <button onclick="event.stopPropagation(); deleteClient('${esc(u.uid)}')" class="text-warm-gray/30 hover:text-red-400 p-1.5 transition-colors cursor-pointer" title="Excluir"><span class="material-symbols-outlined text-lg">delete</span></button>
         <span class="material-symbols-outlined text-warm-gray/25 text-base flex-shrink-0 ml-1">chevron_right</span>
       </div>`;
   }).join('');
@@ -2042,6 +2088,7 @@ window.saveNewClient = async () => {
   const phone = document.getElementById('nc-phone').value.trim();
   if (!name || !phone) { showToast('Preencha nome e telefone.'); return; }
   const btn = document.getElementById('nc-btn');
+  const origText = btn.textContent;
   btn.textContent = 'Salvando...'; btn.disabled = true;
   try {
     if (uid) {
@@ -2055,9 +2102,11 @@ window.saveNewClient = async () => {
     loadClients();
   } catch (e) {
     showToast('Erro ao salvar cliente. Verifique permissões.');
-    console.error(e);
+    console.error('[admin/saveNewClient]', e);
+  } finally {
+    btn.textContent = origText;
+    btn.disabled = false;
   }
-  btn.disabled = false;
 };
 
 window.openClientProfile = async idx => {
@@ -2116,24 +2165,25 @@ window.saveAdminBooking = async () => {
   const svc = document.getElementById('abm-service').value;
   const dat = document.getElementById('abm-date').value;
   const tim = document.getElementById('abm-time').value;
-  
+
   if (!svc || !dat || !tim) { showToast('Preencha todos os campos'); return; }
-  
+
   const parts = dat.split('-');
+  if (parts.length !== 3) { showToast('Data inválida.'); return; }
   const dateStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
-  
+
   const btn = document.getElementById('abm-btn');
   btn.textContent = 'Agendando...'; btn.disabled = true;
-  
+
   try {
-    // Validar duplo agendamento (filtro client-side)
-    const snap = await getDocs(query(collection(db,'appointments'), where('date','==',dateStr), where('time','==',tim)));
-    const activeAppts = snap.docs.filter(dc => dc.data().status !== 'cancelled');
-    if (activeAppts.length > 0) {
-      showToast('Oops! Este horário já está ocupado. Por favor, escolha outro.');
-      btn.textContent = 'Agendar'; btn.disabled = false;
-      return;
-    }
+    // Reserva atômica de slot via doc determinístico (mesma estratégia do agendamento público)
+    const slotId = `${dateStr.replace(/\//g,'-')}_${tim.replace(/:/g,'-')}`;
+    const slotRef = doc(db, 'slot_locks', slotId);
+    await runTransaction(db, async tx => {
+      const slot = await tx.get(slotRef);
+      if (slot.exists()) throw new Error('slot-taken');
+      tx.set(slotRef, { date: dateStr, time: tim, createdAt: serverTimestamp(), source: 'admin' });
+    });
 
     const u = clientsData.find(c => c.uid === currentClientUid) || {};
     await addDoc(collection(db, 'appointments'), {
@@ -2145,15 +2195,21 @@ window.saveAdminBooking = async () => {
       date: dateStr,
       time: tim,
       status: 'confirmed',
+      slotId,
       createdAt: serverTimestamp()
     });
     showToast('Horário agendado com sucesso!');
     closeAdminBookingModal();
   } catch(e) {
-    showToast('Erro ao agendar.');
-    console.error(e);
+    if (e?.message === 'slot-taken') {
+      showToast('Oops! Este horário já está ocupado. Por favor, escolha outro.');
+    } else {
+      showToast('Erro ao agendar.');
+      console.error('[admin/saveAdminBooking]', e);
+    }
+  } finally {
+    btn.textContent = 'Agendar'; btn.disabled = false;
   }
-  btn.textContent = 'Agendar'; btn.disabled = false;
 };
 
 window.backToClients = () => {
@@ -2323,9 +2379,10 @@ window.saveAnamnese = async () => {
     showToast('Ficha salva com sucesso!');
   } catch (e) {
     showToast('Erro ao salvar. Verifique as regras do Firestore.');
-    console.error(e);
+    console.error('[admin/saveAnamnese]', e);
+  } finally {
+    btn.textContent = 'Salvar ficha'; btn.disabled = false;
   }
-  btn.textContent = 'Salvar ficha'; btn.disabled = false;
 };
 
 window.exportAnamnese = () => {
@@ -2497,7 +2554,6 @@ function showToast(msg) {
   setTimeout(()=>{ t.style.opacity='0'; }, 3000);
 }
 
-document.addEventListener('contextmenu',e=>e.preventDefault());
 </script>
 </body>
 </html>

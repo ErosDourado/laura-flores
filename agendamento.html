@@ -225,7 +225,7 @@ tailwind.config = {
 
 <script type="module">
 import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getFirestore, collection, doc, addDoc, getDocs, getDoc, query, where, serverTimestamp, orderBy }
+import { getFirestore, collection, doc, addDoc, getDocs, getDoc, query, where, serverTimestamp, orderBy, runTransaction, setDoc }
                             from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 const FB = {
@@ -240,6 +240,10 @@ const FB = {
 const app  = initializeApp(FB);
 const db   = getFirestore(app);
 const auth = getAuth(app);
+
+const MAX_MONTHS_AHEAD = 3;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 let currentUser = null;
 let currentUserData = null;
 onAuthStateChanged(auth, async user => {
@@ -290,16 +294,27 @@ async function loadServices() {
     const snap = await getDocs(query(collection(db, 'services')));
     const svcs = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => s.active).sort((a,b) => a.order - b.order);
     if (!svcs.length) { grid.innerHTML = '<div class="col-span-2 text-center py-12 text-warm-gray/40 text-sm">Nenhum serviço disponível no momento.</div>'; return; }
+    window._svcCache = svcs;
     grid.innerHTML = svcs.map(s => `
-      <button onclick="selectService('${s.id}','${s.name.replace(/'/g,"\\'")}', this)"
+      <button data-svc-id="${esc(s.id)}"
         class="svc-card text-left p-5 bg-white rounded-2xl border-2 border-rose-light/30 hover:border-rose-gold shadow-sm transition-all cursor-pointer">
         <div class="w-10 h-10 rounded-xl bg-rose-light/30 flex items-center justify-center mb-3">
           <span class="material-symbols-outlined text-rose-gold text-xl">spa</span>
         </div>
-        <h3 class="font-bold text-sm uppercase tracking-wide text-navy-brand mb-1">${s.name}</h3>
-        <p class="text-xs text-warm-gray/60 leading-relaxed">${s.description || ''}</p>
+        <h3 class="font-bold text-sm uppercase tracking-wide text-navy-brand mb-1">${esc(s.name)}</h3>
+        <p class="text-xs text-warm-gray/60 leading-relaxed">${esc(s.description || '')}</p>
       </button>`).join('');
-  } catch { grid.innerHTML = '<div class="col-span-2 text-center py-12 text-red-400 text-sm">Erro ao carregar serviços.</div>'; }
+    grid.querySelectorAll('.svc-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.svcId;
+        const s = (window._svcCache || []).find(x => x.id === id);
+        if (s) window.selectService(s.id, s.name, btn);
+      });
+    });
+  } catch (e) {
+    console.warn('[agendamento/loadServices]', e?.code);
+    grid.innerHTML = '<div class="col-span-2 text-center py-12 text-red-400 text-sm">Erro ao carregar serviços.</div>';
+  }
 }
 
 window.selectService = (id, name, el) => {
@@ -310,6 +325,12 @@ window.selectService = (id, name, el) => {
 };
 
 // ── CALENDAR ─────────────────────────────────────────
+function maxAllowedDate() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const max = new Date(today.getFullYear(), today.getMonth() + MAX_MONTHS_AHEAD, today.getDate());
+  return max;
+}
+
 function buildCalendar() {
   const title  = document.getElementById('cal-title');
   const grid   = document.getElementById('cal-grid');
@@ -319,6 +340,7 @@ function buildCalendar() {
 
   const firstDay = new Date(calYear, calMonth, 1).getDay();
   const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const maxDate = maxAllowedDate();
 
   let html = '';
   for (let i = 0; i < firstDay; i++) html += '<div class="cal-day empty h-9"></div>';
@@ -326,11 +348,12 @@ function buildCalendar() {
     const date    = new Date(calYear, calMonth, d);
     const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isPast    = date < today;
+    const isFuture  = date > maxDate;
     const allowed   = availability.days.includes(date.getDay());
     const isBlocked = (availability.blocked || []).includes(dateStr);
     const isToday   = date.getTime() === today.getTime();
     const isSel     = dateStr === selectedDate;
-    const disabled  = isPast || !allowed || isBlocked;
+    const disabled  = isPast || isFuture || !allowed || isBlocked;
     html += `<div onclick="${disabled ? '' : `pickDate('${dateStr}')`}"
       class="cal-day h-9 flex items-center justify-center rounded-xl text-sm font-semibold transition-all
         ${disabled ? 'disabled text-warm-gray/20' : 'text-warm-gray hover:bg-rose-light/40 cursor-pointer'}
@@ -340,8 +363,24 @@ function buildCalendar() {
   grid.innerHTML = html;
 }
 
-window.prevMonth = () => { calMonth--; if (calMonth < 0) { calMonth=11; calYear--; } buildCalendar(); };
-window.nextMonth = () => { calMonth++; if (calMonth > 11) { calMonth=0; calYear++; } buildCalendar(); };
+function canGoToMonth(year, month) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(year, month, 1);
+  const minMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const maxMonth = new Date(today.getFullYear(), today.getMonth() + MAX_MONTHS_AHEAD, 1);
+  return target >= minMonth && target <= maxMonth;
+}
+
+window.prevMonth = () => {
+  let y = calYear, m = calMonth - 1;
+  if (m < 0) { m = 11; y--; }
+  if (canGoToMonth(y, m)) { calYear = y; calMonth = m; buildCalendar(); }
+};
+window.nextMonth = () => {
+  let y = calYear, m = calMonth + 1;
+  if (m > 11) { m = 0; y++; }
+  if (canGoToMonth(y, m)) { calYear = y; calMonth = m; buildCalendar(); }
+};
 
 window.pickDate = async dateStr => {
   selectedDate = dateStr; selectedTime = null;
@@ -445,12 +484,15 @@ window.goStep = step => {
 window.submitBooking = async () => {
   const name  = document.getElementById('client-name').value.trim();
   const phone = document.getElementById('client-phone').value.trim();
-  const email = document.getElementById('client-email').value.trim();
+  const email = document.getElementById('client-email').value.trim().toLowerCase();
   const wantNotify = document.getElementById('notify-earlier')?.checked || false;
   const err   = document.getElementById('form-error');
   const btn   = document.getElementById('btn-submit');
 
   if (!name || !phone) { err.textContent = 'Preencha nome e celular para continuar.'; err.classList.remove('hidden'); return; }
+  if (!selectedService || !selectedDate || !selectedTime) {
+    err.textContent = 'Selecione serviço, data e horário antes de confirmar.'; err.classList.remove('hidden'); return;
+  }
   err.classList.add('hidden');
   btn.textContent = 'Processando...'; btn.disabled = true;
 
@@ -458,15 +500,20 @@ window.submitBooking = async () => {
   const dateFormatted = `${d}/${m}/${y}`;
 
   try {
-    // Validar agendamento duplo (filtro client-side)
-    const snap = await getDocs(query(collection(db,'appointments'), where('date','==',dateFormatted), where('time','==',selectedTime)));
-    const activeAppts = snap.docs.filter(dc => dc.data().status !== 'cancelled');
-    if (activeAppts.length > 0) {
-      err.textContent = 'Oops! Este horário acabou de ser ocupado. Volte e escolha outro.';
-      err.classList.remove('hidden');
-      btn.textContent = 'Confirmar agendamento'; btn.disabled = false;
-      return;
-    }
+    // Reserva atômica do slot via documento determinístico em `slot_locks`.
+    // A transação aborta se outro cliente já tomou o slot, eliminando a janela de race condition.
+    const slotId = `${dateFormatted.replace(/\//g,'-')}_${selectedTime.replace(/:/g,'-')}`;
+    const slotRef = doc(db, 'slot_locks', slotId);
+    await runTransaction(db, async tx => {
+      const slot = await tx.get(slotRef);
+      if (slot.exists()) throw new Error('slot-taken');
+      tx.set(slotRef, {
+        date: dateFormatted,
+        time: selectedTime,
+        createdAt: serverTimestamp(),
+        ...(currentUser ? { userId: currentUser.uid } : {}),
+      });
+    });
 
     await addDoc(collection(db,'appointments'), {
       clientName:  name,
@@ -477,11 +524,11 @@ window.submitBooking = async () => {
       date:        dateFormatted,
       time:        selectedTime,
       status:      'pending',
+      slotId,
       createdAt:   serverTimestamp(),
       ...(currentUser ? { userId: currentUser.uid } : {}),
     });
 
-    // Se marcou "me avisar se liberar antes", salvar na fila de espera
     if (wantNotify) {
       await addDoc(collection(db,'fila_espera'), {
         clientName:  name,
@@ -492,10 +539,10 @@ window.submitBooking = async () => {
         dateLimit:   dateFormatted,
         wantEarlier: true,
         createdAt:   serverTimestamp(),
+        ...(currentUser ? { userId: currentUser.uid } : {}),
       });
     }
 
-    // Show confirmation
     document.getElementById('conf-service').textContent = selectedService.name;
     document.getElementById('conf-date').textContent    = dateFormatted;
     document.getElementById('conf-time').textContent    = selectedTime;
@@ -510,14 +557,20 @@ window.submitBooking = async () => {
 
     goStep(4);
   } catch (e) {
-    console.error('Erro agendamento:', e);
-    err.textContent = 'Erro ao processar. Tente novamente.';
+    if (e?.message === 'slot-taken') {
+      err.textContent = 'Oops! Este horário acabou de ser ocupado. Volte e escolha outro.';
+    } else if (e?.code === 'unavailable' || e?.code === 'auth/network-request-failed') {
+      err.textContent = 'Sem conexão. Verifique sua internet e tente novamente.';
+    } else {
+      console.error('[agendamento/submit]', e);
+      err.textContent = 'Erro ao processar. Tente novamente.';
+    }
     err.classList.remove('hidden');
-    btn.textContent = 'Confirmar agendamento'; 
+  } finally {
+    btn.textContent = 'Confirmar agendamento';
     btn.disabled = false;
   }
 };
 </script>
-<script>document.addEventListener('contextmenu',e=>e.preventDefault());</script>
 </body>
 </html>

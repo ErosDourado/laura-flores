@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn()
+        && request.auth.token.email != null
+        && firestore.exists(/databases/(default)/documents/content/admins)
+        && (request.auth.token.email.lower()
+            in firestore.get(/databases/(default)/documents/content/admins).data.emails.map(e, e.lower()));
+    }
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    function smallEnough() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // Imagens de conteúdo (procedimentos, depoimentos, promo) — leitura pública,
+    // escrita só admin.
+    match /procedures/{file=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImage() && smallEnough();
+    }
+    match /testimonials/{file=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImage() && smallEnough();
+    }
+    match /promo/{file=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImage() && smallEnough();
+    }
+
+    // Fotos de perfil do cliente — leitura pública (avatar), escrita apenas pelo dono.
+    match /profile/{uid}/{file=**} {
+      allow read:  if true;
+      allow write: if isSignedIn() && request.auth.uid == uid
+                   && isImage() && smallEnough();
+    }
+
+    // Catch-all: bloquear tudo o que não foi liberado acima.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

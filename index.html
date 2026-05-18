@@ -389,6 +389,9 @@
     const fbApp = initializeApp(FB);
     const db = getFirestore(fbApp);
 
+    // Escape HTML entities to prevent XSS when interpolating Firestore data into innerHTML.
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
     const DEFAULT_PROCEDURES = [
         { titulo: "OZONIOTERAPIA",   slug: "ozonioterapia",   imagem: "assets/treatment.png", descricao: "A <b>ozonioterapia</b> é um tratamento seguro, natural e minimamente invasivo que utiliza uma mistura precisa de oxigênio e ozônio medicinal. Essa técnica age de dentro para fora, estimulando a capacidade do seu próprio corpo de se curar, desinflamar e se regenerar." },
         { titulo: "BIOESTIMULADORES",slug: "bioestimuladores", imagem: "assets/treatment.png", descricao: "Os <b>bioestimuladores de colágeno</b> são substâncias aplicadas para estimular a produção natural de novas fibras de colágeno. O resultado é uma pele mais firme, com menos flacidez e um aspecto rejuvenescido e saudável." },
@@ -412,10 +415,10 @@
             el.innerHTML = `
                 <div class="bg-white rounded-xl overflow-hidden flex flex-col md:flex-row items-stretch shadow-2xl text-left h-full">
                     <div class="md:w-1/2 h-48 sm:h-64 md:h-auto overflow-hidden">
-                        <img alt="${p.titulo}" class="w-full h-full object-cover" src="${p.imagem}"/>
+                        <img alt="${esc(p.titulo)}" class="w-full h-full object-cover" src="${esc(p.imagem)}"/>
                     </div>
                     <div class="md:w-1/2 p-6 md:p-12 flex flex-col justify-center text-warm-gray">
-                        <h3 class="font-headline text-lg md:text-2xl font-bold mb-4 md:mb-6 text-rose-gold uppercase tracking-wide">${p.titulo}</h3>
+                        <h3 class="font-headline text-lg md:text-2xl font-bold mb-4 md:mb-6 text-rose-gold uppercase tracking-wide">${esc(p.titulo)}</h3>
                         <p class="text-sm md:text-base text-warm-gray/80 leading-relaxed font-medium">${p.descricao}</p>
                     </div>
                 </div>`;
@@ -442,12 +445,13 @@
             document.getElementById('promo-cta').href = p.link || p.ctaLink || 'agendamento.html';
             if (p.imageUrl) {
                 const bg = document.getElementById('promo-bg');
-                bg.style.backgroundImage = `url('${p.imageUrl}')`;
+                const safeUrl = String(p.imageUrl).replace(/'/g, "%27");
+                bg.style.backgroundImage = `url('${safeUrl}')`;
                 bg.style.backgroundSize = 'cover';
                 bg.style.backgroundPosition = 'center';
             }
             document.getElementById('promo-section').classList.remove('hidden');
-        } catch {}
+        } catch (e) { console.warn('[home/promo]', e?.code); }
     }
 
     const DEFAULT_FEATURES = [
@@ -472,25 +476,25 @@
             if (featuresContainer) {
                 featuresContainer.innerHTML = features.map(f => `
                     <div class="flex-none snap-center w-56 sm:w-64 bg-deep-rose p-5 text-white rounded-xl shadow-xl">
-                    <span class="material-symbols-outlined text-rose-light text-2xl mb-3 block">${f.icon}</span>
-                    <h3 class="font-headline font-bold text-sm mb-1 uppercase tracking-wide">${f.title}</h3>
-                    <p class="text-white/70 text-xs leading-relaxed">${f.text}</p>
+                    <span class="material-symbols-outlined text-rose-light text-2xl mb-3 block">${esc(f.icon)}</span>
+                    <h3 class="font-headline font-bold text-sm mb-1 uppercase tracking-wide">${esc(f.title)}</h3>
+                    <p class="text-white/70 text-xs leading-relaxed">${esc(f.text)}</p>
                     </div>`).join('');
             }
-            
+
             const snapTestimonials = await getDoc(doc(db, 'content', 'testimonials'));
             const testimonials = snapTestimonials.exists() ? (snapTestimonials.data().items || DEFAULT_TESTIMONIALS) : DEFAULT_TESTIMONIALS;
-            
+
             const testimonialsContainer = document.getElementById('testimonials-container');
             if (testimonialsContainer) {
                 testimonialsContainer.innerHTML = testimonials.map(t => `
                     <div class="flex-none snap-center w-[85vw] sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col items-center text-center">
-                    <p class="text-warm-gray/80 mb-6 font-medium leading-relaxed italic text-sm">${t.text}</p>
+                    <p class="text-warm-gray/80 mb-6 font-medium leading-relaxed italic text-sm">${esc(t.text)}</p>
                     <div class="flex flex-col items-center gap-2 mt-auto">
-                    <img src="${t.image}" alt="${t.name}" class="w-12 h-12 rounded-full object-cover ring-2 ring-rose-light"/>
+                    <img src="${esc(t.image)}" alt="${esc(t.name)}" class="w-12 h-12 rounded-full object-cover ring-2 ring-rose-light"/>
                     <div>
-                    <p class="font-bold text-xs uppercase">${t.name}</p>
-                    <p class="text-[10px] font-semibold text-rose-gold uppercase tracking-wider">${t.role}</p>
+                    <p class="font-bold text-xs uppercase">${esc(t.name)}</p>
+                    <p class="text-[10px] font-semibold text-rose-gold uppercase tracking-wider">${esc(t.role)}</p>
                     </div>
                     </div>
                     </div>`).join('');
@@ -565,7 +569,11 @@
       let isAdmin = false;
       try {
         const snap = await getDoc(doc(db, 'content', 'admins'));
-        if (snap.exists()) isAdmin = (snap.data().emails || []).includes(user.email);
+        if (snap.exists()) {
+          const userEmail = (user.email || '').trim().toLowerCase();
+          const admins = (snap.data().emails || []).map(e => (e || '').trim().toLowerCase());
+          isAdmin = admins.includes(userEmail);
+        }
       } catch {}
 
       if (isAdmin) {
@@ -591,5 +599,4 @@
       }
     });
 </script>
-<script>document.addEventListener('contextmenu',e=>e.preventDefault());</script>
 </body></html>

@@ -57,12 +57,12 @@ tailwind.config = {
     <!-- LOGIN -->
     <div id="panel-login" class="p-8 space-y-4">
       <div>
-        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">E-mail</label>
+        <label for="l-email" class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">E-mail</label>
         <input id="l-email" type="email" autocomplete="email" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="seu@email.com"/>
       </div>
       <div>
         <div class="flex items-center justify-between mb-1.5">
-          <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60">Senha</label>
+          <label for="l-pass" class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60">Senha</label>
           <button onclick="showTab('recovery')" class="text-[10px] font-bold text-rose-gold hover:underline cursor-pointer">Esqueceu?</button>
         </div>
         <input id="l-pass" type="password" autocomplete="current-password" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="••••••••"/>
@@ -75,20 +75,20 @@ tailwind.config = {
     <!-- SIGNUP -->
     <div id="panel-signup" class="p-8 space-y-4 hidden">
       <div>
-        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Nome completo *</label>
+        <label for="s-name" class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Nome completo *</label>
         <input id="s-name" type="text" autocomplete="name" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="Seu nome"/>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Celular *</label>
+        <label for="s-phone" class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Celular *</label>
         <input id="s-phone" type="tel" autocomplete="tel" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="(65) 9 9999-9999"/>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">E-mail *</label>
+        <label for="s-email" class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">E-mail *</label>
         <input id="s-email" type="email" autocomplete="email" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="seu@email.com"/>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Senha *</label>
-        <input id="s-pass" type="password" autocomplete="new-password" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="mínimo 6 caracteres"/>
+        <label for="s-pass" class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Senha *</label>
+        <input id="s-pass" type="password" autocomplete="new-password" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="mín. 8 caracteres, com letras e números"/>
       </div>
       <p id="s-error" class="text-red-500 text-xs hidden text-center"></p>
       <button onclick="doSignup()" id="s-btn" class="w-full bg-rose-gold text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-deep-rose transition-colors cursor-pointer">Criar conta</button>
@@ -102,7 +102,7 @@ tailwind.config = {
         <p class="text-xs text-warm-gray/70">Enviaremos um link de recuperação para o seu e-mail.</p>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Seu E-mail</label>
+        <label for="r-email" class="block text-[10px] font-bold uppercase tracking-widest text-warm-gray/60 mb-1.5">Seu E-mail</label>
         <input id="r-email" type="email" autocomplete="email" class="w-full border border-rose-light/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-gold" placeholder="seu@email.com"/>
       </div>
       <p id="r-msg" class="text-xs hidden text-center font-semibold"></p>
@@ -149,7 +149,7 @@ window.showTab = tab => {
 };
 
 window.doLogin = async () => {
-  const email = document.getElementById('l-email').value.trim();
+  const email = document.getElementById('l-email').value.trim().toLowerCase();
   const pass  = document.getElementById('l-pass').value;
   const err   = document.getElementById('l-error');
   const btn   = document.getElementById('l-btn');
@@ -158,8 +158,11 @@ window.doLogin = async () => {
     isAuthAction = true;
     await signInWithEmailAndPassword(auth, email, pass);
     window.location.href = 'index.html';
-  } catch {
-    err.textContent = 'E-mail ou senha incorretos.'; err.classList.remove('hidden');
+  } catch (e) {
+    if (e.code === 'auth/network-request-failed') err.textContent = 'Sem conexão. Verifique sua internet.';
+    else if (e.code === 'auth/too-many-requests') err.textContent = 'Muitas tentativas. Aguarde alguns minutos.';
+    else err.textContent = 'E-mail ou senha incorretos.';
+    err.classList.remove('hidden');
     btn.textContent = 'Entrar'; btn.disabled = false;
     isAuthAction = false;
   }
@@ -168,13 +171,16 @@ window.doLogin = async () => {
 window.doSignup = async () => {
   const name  = document.getElementById('s-name').value.trim();
   const phone = document.getElementById('s-phone').value.trim();
-  const email = document.getElementById('s-email').value.trim();
+  const email = document.getElementById('s-email').value.trim().toLowerCase();
   const pass  = document.getElementById('s-pass').value;
   const err   = document.getElementById('s-error');
   const btn   = document.getElementById('s-btn');
   err.classList.add('hidden');
   if (!name || !phone || !email || !pass) { err.textContent = 'Preencha todos os campos.'; err.classList.remove('hidden'); return; }
-  if (pass.length < 6) { err.textContent = 'A senha deve ter no mínimo 6 caracteres.'; err.classList.remove('hidden'); return; }
+  if (pass.length < 8 || !/[A-Za-z]/.test(pass) || !/\d/.test(pass)) {
+    err.textContent = 'A senha precisa ter no mínimo 8 caracteres, com letras e números.';
+    err.classList.remove('hidden'); return;
+  }
   btn.textContent = 'Criando conta...'; btn.disabled = true;
   try {
     isAuthAction = true;
@@ -204,7 +210,7 @@ document.getElementById('s-pass').addEventListener('keydown', e => { if(e.key===
 document.getElementById('r-email').addEventListener('keydown', e => { if(e.key==='Enter') window.doRecover(); });
 
 window.doRecover = async () => {
-  const email = document.getElementById('r-email').value.trim();
+  const email = document.getElementById('r-email').value.trim().toLowerCase();
   const msg   = document.getElementById('r-msg');
   const btn   = document.getElementById('r-btn');
   msg.classList.add('hidden');
@@ -215,19 +221,17 @@ window.doRecover = async () => {
   btn.textContent = 'Enviando...'; btn.disabled = true;
   try {
     await sendPasswordResetEmail(auth, email);
-    msg.textContent = 'E-mail de recuperação enviado! Verifique sua caixa de entrada e spam.';
-    msg.className = 'text-green-600 text-xs text-center font-semibold';
-    msg.classList.remove('hidden');
-    btn.textContent = 'Enviar link'; btn.disabled = false;
   } catch (e) {
-    msg.textContent = 'Erro ao enviar. Verifique o e-mail digitado.';
-    if (e.code === 'auth/user-not-found') msg.textContent = 'Usuário não encontrado.';
-    msg.className = 'text-red-500 text-xs text-center font-semibold';
+    if (e.code !== 'auth/user-not-found' && e.code !== 'auth/invalid-email') {
+      console.warn('[recover] erro inesperado:', e.code);
+    }
+  } finally {
+    msg.textContent = 'Se este e-mail estiver cadastrado, enviamos um link de recuperação. Verifique sua caixa de entrada e o spam.';
+    msg.className = 'text-green-600 text-xs text-center font-semibold';
     msg.classList.remove('hidden');
     btn.textContent = 'Enviar link'; btn.disabled = false;
   }
 };
-document.addEventListener('contextmenu',e=>e.preventDefault());
 </script>
 </body>
 </html>

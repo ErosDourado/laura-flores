@@ -1,0 +1,98 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function userEmail() {
+      return request.auth.token.email != null
+        ? request.auth.token.email.lower()
+        : '';
+    }
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/content/admins)
+        && (userEmail() in get(/databases/$(database)/documents/content/admins).data.emails.map(e, e.lower()));
+    }
+
+    // Conteúdo público do site (procedures, features, testimonials, promo_card,
+    // availability, messages) — leitura aberta para alimentar a home; escrita só admin.
+    // Documento `admins` precisa ser legível para o próprio check de admin funcionar.
+    match /content/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Cadastro do cliente final (criado no signup). Só o dono e admins acessam.
+    match /users/{uid} {
+      allow read:   if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Cadastros manuais feitos pelo admin (sem Auth associado).
+    match /clientes/{clientId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Fichas clínicas (dados sensíveis) — somente admin.
+    match /anamnese/{clientId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Agendamentos:
+    // - leitura: o dono (via userId/clientId) ou admin
+    // - criação: qualquer um (público pode reservar); valida campos obrigatórios
+    //   e amarra ao userId quando autenticado
+    // - update/delete: só admin
+    match /appointments/{apptId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && (resource.data.userId == request.auth.uid
+                          || resource.data.clientId == request.auth.uid));
+      allow create: if
+        request.resource.data.keys().hasAll(['clientName','phone','serviceName','date','time','status'])
+        && request.resource.data.clientName is string && request.resource.data.clientName.size() > 0
+        && request.resource.data.phone is string && request.resource.data.phone.size() > 0
+        && request.resource.data.serviceName is string
+        && request.resource.data.date is string && request.resource.data.date.size() <= 10
+        && request.resource.data.time is string && request.resource.data.time.size() == 5
+        && request.resource.data.status in ['pending','confirmed','concluded','cancelled']
+        && (!('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // Lock determinístico de slot para evitar double-booking.
+    // Qualquer um pode criar (uma vez); ninguém deve atualizar; admin pode apagar
+    // se for preciso liberar manualmente.
+    match /slot_locks/{slotId} {
+      allow read:   if true;
+      allow create: if request.resource.data.date is string
+                    && request.resource.data.time is string;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // Fila de espera — qualquer um cria; só admin lê/edita.
+    match /fila_espera/{itemId} {
+      allow create: if request.resource.data.clientName is string
+                    && request.resource.data.phone is string;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Serviços oferecidos — leitura pública (consumido pela home/agendamento),
+    // escrita só admin.
+    match /services/{svcId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // Catch-all: bloquear o que não foi explicitamente liberado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

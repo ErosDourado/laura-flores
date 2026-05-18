@@ -133,6 +133,8 @@ const app  = initializeApp(FB);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 let currentUid = null;
 
 onAuthStateChanged(auth, async user => {
@@ -199,9 +201,10 @@ window.saveProfile = async () => {
   } catch (e) {
     msg.textContent = 'Erro ao salvar. Verifique as regras do Firestore.';
     msg.classList.remove('hidden');
-    console.warn('saveProfile:', e.code);
+    console.warn('[perfil/saveProfile]', e?.code);
+  } finally {
+    btn.textContent = 'Salvar'; btn.disabled = false;
   }
-  btn.textContent = 'Salvar'; btn.disabled = false;
 };
 
 async function loadAppointments(uid) {
@@ -233,10 +236,10 @@ async function loadAppointments(uid) {
       <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-light/20">
         <div class="flex items-start justify-between gap-3">
           <div>
-            <h3 class="font-bold text-sm text-navy-brand">${a.serviceName || '—'}</h3>
-            <p class="text-xs text-warm-gray/50 mt-0.5">${a.date || '—'}${a.time ? ' · ' + a.time : ''}</p>
+            <h3 class="font-bold text-sm text-navy-brand">${esc(a.serviceName) || '—'}</h3>
+            <p class="text-xs text-warm-gray/50 mt-0.5">${esc(a.date) || '—'}${a.time ? ' · ' + esc(a.time) : ''}</p>
           </div>
-          <span class="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full flex-shrink-0 ${cls[a.status] || 'bg-gray-100 text-gray-500'}">${labels[a.status] || a.status}</span>
+          <span class="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full flex-shrink-0 ${cls[a.status] || 'bg-gray-100 text-gray-500'}">${labels[a.status] || esc(a.status)}</span>
         </div>
       </div>`).join('');
   } catch (e) {
@@ -249,7 +252,6 @@ async function loadAppointments(uid) {
       </div>`;
   }
 }
-document.addEventListener('contextmenu',e=>e.preventDefault());
 </script>
 </body>
 </html>
