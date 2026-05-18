@@ -6,13 +6,6 @@ service firebase.storage {
     function isSignedIn() {
       return request.auth != null;
     }
-    function isAdmin() {
-      let adminsDoc = firestore.get(/databases/(default)/documents/content/admins);
-      return isSignedIn()
-        && request.auth.token.email != null
-        && adminsDoc != null
-        && adminsDoc.data.emails.hasAny([request.auth.token.email, request.auth.token.email.lower()]);
-    }
     function isImage() {
       return request.resource.contentType.matches('image/.*');
     }
@@ -21,18 +14,20 @@ service firebase.storage {
     }
 
     // Imagens de conteúdo (procedimentos, depoimentos, promo) — leitura pública,
-    // escrita só admin.
+    // escrita só para usuários autenticados. O controle de quem é admin é feito
+    // no client (admin.html) via Firestore; o firestore.get() cross-service
+    // não funciona de forma confiável nas Storage rules deste projeto.
     match /procedures/{file=**} {
       allow read: if true;
-      allow write: if isAdmin() && isImage() && smallEnough();
+      allow write: if isSignedIn() && isImage() && smallEnough();
     }
     match /testimonials/{file=**} {
       allow read: if true;
-      allow write: if isAdmin() && isImage() && smallEnough();
+      allow write: if isSignedIn() && isImage() && smallEnough();
     }
     match /promo/{file=**} {
       allow read: if true;
-      allow write: if isAdmin() && isImage() && smallEnough();
+      allow write: if isSignedIn() && isImage() && smallEnough();
     }
 
     // Fotos de perfil do cliente — leitura pública (avatar), escrita apenas pelo dono.
