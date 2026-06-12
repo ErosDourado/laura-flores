@@ -333,6 +333,10 @@
     const fbApp = initializeApp(FB);
     const db = getFirestore(fbApp);
 
+    // Scroll sempre começa no topo ao carregar/atualizar a página
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    window.scrollTo(0, 0);
+
     // Escape HTML entities to prevent XSS when interpolating Firestore data into innerHTML.
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -480,12 +484,13 @@
         const testimonials = snapTest?.exists()  ? (snapTest.data().items  || DEFAULT_TESTIMONIALS) : DEFAULT_TESTIMONIALS;
         const promo        = snapPromo?.exists() ? snapPromo.data()        : null;
 
-        // 3. Atualiza o DOM com dados frescos
-        renderProcedures(procedures);
-        renderFeatures(features);
-        renderTestimonials(testimonials);
-        renderPromo(promo);
-        if (dados) renderContact(dados);
+        // 3. Só re-renderiza seções cujos dados mudaram (evita piscar imagens)
+        const diff = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
+        if (diff(procedures,   cached?.procedures))   renderProcedures(procedures);
+        if (diff(features,     cached?.features))     renderFeatures(features);
+        if (diff(testimonials, cached?.testimonials)) renderTestimonials(testimonials);
+        if (diff(promo,        cached?.promo))        renderPromo(promo);
+        if (diff(dados,        cached?.dados))        renderContact(dados);
 
         // 4. Salva no cache para a próxima visita
         writeContentCache({ procedures, features, testimonials, promo, dados });
