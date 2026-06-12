@@ -342,18 +342,22 @@
         { titulo: "HARMONIZAÇÃO",    slug: "harmonizacao",    imagem: "assets/treatment.png", descricao: "A <b>harmonização facial</b> busca o equilíbrio estético e funcional da face. Através de um conjunto de procedimentos minimamente invasivos, realçamos sua beleza natural e suavizamos marcas de expressão, respeitando sua individualidade." }
     ];
 
-    async function loadProcedures() {
-        try {
-            const snap = await getDoc(doc(db, 'content', 'procedures'));
-            return snap.exists() ? (snap.data().items || DEFAULT_PROCEDURES) : DEFAULT_PROCEDURES;
-        } catch { return DEFAULT_PROCEDURES; }
+    // ── CONTENT CACHE (stale-while-revalidate) ────────────
+    const CONTENT_CACHE_KEY = 'bioflores_content_v1';
+    function readContentCache() {
+        try { return JSON.parse(localStorage.getItem(CONTENT_CACHE_KEY) || 'null'); } catch { return null; }
+    }
+    function writeContentCache(data) {
+        try { localStorage.setItem(CONTENT_CACHE_KEY, JSON.stringify(data)); } catch {}
     }
 
-    function injectProcedures(procedimentos) {
+    // ── RENDER FUNCTIONS ──────────────────────────────────
+
+    function renderProcedures(items) {
         const container = document.getElementById('procedure-carousel');
         if (!container) return;
         container.innerHTML = '';
-        procedimentos.forEach(p => {
+        items.forEach(p => {
             const el = document.createElement('div');
             el.className = 'flex-none w-full md:w-[850px] snap-center proc-anim-item';
             el.innerHTML = `
@@ -379,23 +383,63 @@
         container.querySelectorAll('.proc-anim-item').forEach(el => obs.observe(el));
     }
 
-    async function loadPromoCard() {
-        try {
-            const snap = await getDoc(doc(db, 'content', 'promo_card'));
-            if (!snap.exists()) return;
-            const p = snap.data();
-            if (!p.active || !p.title) return;
-            document.getElementById('promo-title').textContent = p.title;
-            document.getElementById('promo-cta').href = p.link || p.ctaLink || 'agendamento.html';
-            if (p.imageUrl) {
-                const bg = document.getElementById('promo-bg');
-                const safeUrl = String(p.imageUrl).replace(/'/g, "%27");
-                bg.style.backgroundImage = `url('${safeUrl}')`;
-                bg.style.backgroundSize = 'cover';
-                bg.style.backgroundPosition = 'center';
-            }
-            document.getElementById('promo-section').classList.remove('hidden');
-        } catch (e) { console.warn('[home/promo]', e?.code); }
+    function renderFeatures(items) {
+        const el = document.getElementById('features-container');
+        if (!el) return;
+        el.innerHTML = items.map(f => `
+            <div class="flex-none snap-center w-56 sm:w-64 bg-deep-rose p-5 text-white rounded-xl shadow-xl">
+            <span class="material-symbols-outlined text-rose-light text-2xl mb-3 block">${esc(f.icon)}</span>
+            <h3 class="font-headline font-bold text-sm mb-1 uppercase tracking-wide">${esc(f.title)}</h3>
+            <p class="text-white/70 text-xs leading-relaxed">${esc(f.text)}</p>
+            </div>`).join('');
+    }
+
+    function renderTestimonials(items) {
+        const el = document.getElementById('testimonials-container');
+        if (!el) return;
+        el.innerHTML = items.map(t => `
+            <div class="flex-none snap-center w-[85vw] sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col items-center text-center">
+            <p class="text-warm-gray/80 mb-6 font-medium leading-relaxed italic text-sm">${esc(t.text)}</p>
+            <div class="flex flex-col items-center gap-2 mt-auto">
+            <img src="${esc(t.image)}" alt="${esc(t.name)}" class="w-12 h-12 rounded-full object-cover ring-2 ring-rose-light"/>
+            <div>
+            <p class="font-bold text-xs uppercase">${esc(t.name)}</p>
+            <p class="text-[10px] font-semibold text-rose-gold uppercase tracking-wider">${esc(t.role)}</p>
+            </div>
+            </div>
+            </div>`).join('');
+    }
+
+    function renderPromo(p) {
+        if (!p?.active || !p?.title) return;
+        document.getElementById('promo-title').textContent = p.title;
+        document.getElementById('promo-cta').href = p.link || p.ctaLink || 'agendamento.html';
+        if (p.imageUrl) {
+            const bg = document.getElementById('promo-bg');
+            const safeUrl = String(p.imageUrl).replace(/'/g, "%27");
+            bg.style.backgroundImage = `url('${safeUrl}')`;
+            bg.style.backgroundSize = 'cover';
+            bg.style.backgroundPosition = 'center';
+        }
+        document.getElementById('promo-section').classList.remove('hidden');
+    }
+
+    function renderContact(data) {
+        if (!data) return;
+        const waLink = `https://wa.me/${data.whatsapp}`;
+        document.querySelectorAll('.btn-whatsapp').forEach(btn => { btn.href = waLink; btn.target = '_blank'; });
+        const drawerWa = document.getElementById('drawer-wa');
+        if (drawerWa) drawerWa.href = waLink;
+        const headerWa = document.getElementById('header-wa');
+        if (headerWa) headerWa.href = waLink;
+        document.querySelectorAll('.site-endereco').forEach(el => { el.textContent = data.localizacao_endereco; });
+        const mapIframe = document.getElementById('map-iframe');
+        if (mapIframe) mapIframe.src = `https://www.google.com/maps?q=${encodeURIComponent(data.localizacao_endereco)}&output=embed`;
+        const wn = data.whatsapp;
+        const phoneDisplay = wn.length === 13
+            ? `(${wn.substring(2,4)}) ${wn.substring(4,9)}-${wn.substring(9)}`
+            : `(${wn.substring(2,4)}) ${wn.substring(4,8)}-${wn.substring(8)}`;
+        document.querySelectorAll('.btn-whatsapp-number').forEach(el => { el.textContent = phoneDisplay; });
     }
 
     const DEFAULT_FEATURES = [
@@ -411,77 +455,40 @@
         { text: '"Entende todas as expectativas, respeita a natureza do nosso rosto. Estou muito feliz com os resultados."', image: 'https://randomuser.me/api/portraits/women/23.jpg', name: 'Luiza Santos', role: 'Paciente' }
     ];
 
-    async function loadFeaturesAndTestimonials() {
-        try {
-            const snapFeatures = await getDoc(doc(db, 'content', 'home_features'));
-            const features = snapFeatures.exists() ? (snapFeatures.data().items || DEFAULT_FEATURES) : DEFAULT_FEATURES;
-            
-            const featuresContainer = document.getElementById('features-container');
-            if (featuresContainer) {
-                featuresContainer.innerHTML = features.map(f => `
-                    <div class="flex-none snap-center w-56 sm:w-64 bg-deep-rose p-5 text-white rounded-xl shadow-xl">
-                    <span class="material-symbols-outlined text-rose-light text-2xl mb-3 block">${esc(f.icon)}</span>
-                    <h3 class="font-headline font-bold text-sm mb-1 uppercase tracking-wide">${esc(f.title)}</h3>
-                    <p class="text-white/70 text-xs leading-relaxed">${esc(f.text)}</p>
-                    </div>`).join('');
-            }
-
-            const snapTestimonials = await getDoc(doc(db, 'content', 'testimonials'));
-            const testimonials = snapTestimonials.exists() ? (snapTestimonials.data().items || DEFAULT_TESTIMONIALS) : DEFAULT_TESTIMONIALS;
-
-            const testimonialsContainer = document.getElementById('testimonials-container');
-            if (testimonialsContainer) {
-                testimonialsContainer.innerHTML = testimonials.map(t => `
-                    <div class="flex-none snap-center w-[85vw] sm:w-80 md:w-auto bg-white p-6 rounded-xl text-warm-gray border border-rose-light/30 shadow-sm flex flex-col items-center text-center">
-                    <p class="text-warm-gray/80 mb-6 font-medium leading-relaxed italic text-sm">${esc(t.text)}</p>
-                    <div class="flex flex-col items-center gap-2 mt-auto">
-                    <img src="${esc(t.image)}" alt="${esc(t.name)}" class="w-12 h-12 rounded-full object-cover ring-2 ring-rose-light"/>
-                    <div>
-                    <p class="font-bold text-xs uppercase">${esc(t.name)}</p>
-                    <p class="text-[10px] font-semibold text-rose-gold uppercase tracking-wider">${esc(t.role)}</p>
-                    </div>
-                    </div>
-                    </div>`).join('');
-            }
-        } catch (e) {
-            console.error("Erro ao carregar features e depoimentos", e);
-        }
-    }
-
-
     async function initApp() {
-        // Load procedures from Firebase (with fallback)
-        const procedimentos = await loadProcedures();
-        injectProcedures(procedimentos);
-        loadPromoCard();
-        await loadFeaturesAndTestimonials();
+        // 1. Renderiza do cache imediatamente (visita repetida = instantâneo)
+        const cached = readContentCache();
+        if (cached) {
+            if (cached.procedures)   renderProcedures(cached.procedures);
+            if (cached.features)     renderFeatures(cached.features);
+            if (cached.testimonials) renderTestimonials(cached.testimonials);
+            if (cached.promo)        renderPromo(cached.promo);
+            if (cached.dados)        renderContact(cached.dados);
+        }
 
-        // Load contact data from dados.json
-        try {
-            const response = await fetch('dados.json');
-            const data = await response.json();
-            const whatsapp = data.whatsapp;
-            const endereco = data.localizacao_endereco;
-            const waLink   = `https://wa.me/${whatsapp}`;
+        // 2. Busca todas as fontes em paralelo
+        const [snapProc, snapFeat, snapTest, snapPromo, dados] = await Promise.all([
+            getDoc(doc(db, 'content', 'procedures')).catch(() => null),
+            getDoc(doc(db, 'content', 'home_features')).catch(() => null),
+            getDoc(doc(db, 'content', 'testimonials')).catch(() => null),
+            getDoc(doc(db, 'content', 'promo_card')).catch(() => null),
+            fetch('dados.json').then(r => r.json()).catch(() => null),
+        ]);
 
-            document.querySelectorAll('.btn-whatsapp').forEach(btn => {
-                btn.href = waLink; btn.target = "_blank";
-            });
-            const drawerWa = document.getElementById('drawer-wa');
-            if (drawerWa) { drawerWa.href = waLink; }
-            const headerWa = document.getElementById('header-wa');
-            if (headerWa) { headerWa.href = waLink; }
-            document.querySelectorAll('.site-endereco').forEach(el => {
-                el.textContent = endereco;
-            });
-            const mapIframe = document.getElementById('map-iframe');
-            if (mapIframe) mapIframe.src = `https://www.google.com/maps?q=${encodeURIComponent(endereco)}&output=embed`;
+        const procedures   = snapProc?.exists()  ? (snapProc.data().items  || DEFAULT_PROCEDURES)   : DEFAULT_PROCEDURES;
+        const features     = snapFeat?.exists()  ? (snapFeat.data().items  || DEFAULT_FEATURES)     : DEFAULT_FEATURES;
+        const testimonials = snapTest?.exists()  ? (snapTest.data().items  || DEFAULT_TESTIMONIALS) : DEFAULT_TESTIMONIALS;
+        const promo        = snapPromo?.exists() ? snapPromo.data()        : null;
 
-            const phoneDisplay = whatsapp.length === 13
-                ? `(${whatsapp.substring(2,4)}) ${whatsapp.substring(4,9)}-${whatsapp.substring(9)}`
-                : `(${whatsapp.substring(2,4)}) ${whatsapp.substring(4,8)}-${whatsapp.substring(8)}`;
-            document.querySelectorAll('.btn-whatsapp-number').forEach(el => { el.textContent = phoneDisplay; });
-        } catch (e) { console.error("Erro ao carregar dados.json:", e); }
+        // 3. Atualiza o DOM com dados frescos
+        renderProcedures(procedures);
+        renderFeatures(features);
+        renderTestimonials(testimonials);
+        renderPromo(promo);
+        if (dados) renderContact(dados);
+
+        // 4. Salva no cache para a próxima visita
+        writeContentCache({ procedures, features, testimonials, promo, dados });
     }
 
     initApp();
@@ -562,6 +569,7 @@ if ('serviceWorker' in navigator) {
     const localVersion = localStorage.getItem('app_config_version');
     if (serverVersion === localVersion) return;
     localStorage.setItem('app_config_version', serverVersion);
+    localStorage.removeItem(CONTENT_CACHE_KEY);
     try {
       if (navigator.serviceWorker?.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_ALL_CACHES' });
